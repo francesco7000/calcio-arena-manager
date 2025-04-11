@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Participant } from "@/types";
 import { motion } from "framer-motion";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FootballFieldProps {
   participants: Participant[];
 }
 
 const FootballField = ({ participants }: FootballFieldProps) => {
+  const isMobile = useIsMobile();
   // Split participants into teams
   const teamA = participants.filter(p => !p.team || p.team === 'A');
   const teamB = participants.filter(p => p.team === 'B');
@@ -23,44 +25,44 @@ const FootballField = ({ participants }: FootballFieldProps) => {
   const forwardsB = teamB.filter(p => p.position === 'FWD');
 
   return (
-    <div className="relative w-full min-h-[500px] sm:min-h-[600px] bg-gradient-to-b from-calcio-green to-calcio-darkGreen rounded-lg overflow-hidden border-4 border-white shadow-xl">
+    <div className="relative w-full min-h-[500px] sm:min-h-[600px] bg-gradient-to-b from-calcio-green to-calcio-darkGreen rounded-lg overflow-hidden border-2 border-white shadow-xl">
       {/* Field markings */}
       <div className="absolute inset-0">
         {/* Center circle */}
-        <div className="absolute top-1/2 left-1/2 w-24 h-24 sm:w-32 sm:h-32 rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2" />
+        <div className="absolute top-1/2 left-1/2 w-20 h-20 sm:w-28 sm:h-28 rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2" />
         <div className="absolute top-1/2 left-1/2 w-2 h-2 sm:w-3 sm:h-3 bg-white rounded-full transform -translate-x-1/2 -translate-y-1/2" />
         
         {/* Center line */}
         <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white transform -translate-y-1/2" />
         
         {/* Penalty areas */}
-        <div className="absolute top-0 left-1/2 w-40 sm:w-48 h-16 sm:h-20 border-b-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
-        <div className="absolute bottom-0 left-1/2 w-40 sm:w-48 h-16 sm:h-20 border-t-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
+        <div className="absolute top-0 left-1/2 w-36 sm:w-44 h-14 sm:h-18 border-b-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
+        <div className="absolute bottom-0 left-1/2 w-36 sm:w-44 h-14 sm:h-18 border-t-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
         
         {/* Goal areas */}
-        <div className="absolute top-0 left-1/2 w-20 sm:w-24 h-6 sm:h-8 border-b-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
-        <div className="absolute bottom-0 left-1/2 w-20 sm:w-24 h-6 sm:h-8 border-t-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
+        <div className="absolute top-0 left-1/2 w-18 sm:w-22 h-5 sm:h-7 border-b-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
+        <div className="absolute bottom-0 left-1/2 w-18 sm:w-22 h-5 sm:h-7 border-t-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
         
         {/* Penalty spots */}
-        <div className="absolute top-24 sm:top-28 left-1/2 w-2 h-2 bg-white rounded-full transform -translate-x-1/2" />
-        <div className="absolute bottom-24 sm:bottom-28 left-1/2 w-2 h-2 bg-white rounded-full transform -translate-x-1/2" />
+        <div className="absolute top-20 sm:top-24 left-1/2 w-2 h-2 bg-white rounded-full transform -translate-x-1/2" />
+        <div className="absolute bottom-20 sm:bottom-24 left-1/2 w-2 h-2 bg-white rounded-full transform -translate-x-1/2" />
         
         {/* Corner arcs */}
-        <div className="absolute top-0 left-0 w-6 h-6 border-r-2 border-white rounded-br-full" />
-        <div className="absolute top-0 right-0 w-6 h-6 border-l-2 border-white rounded-bl-full" />
-        <div className="absolute bottom-0 left-0 w-6 h-6 border-r-2 border-white rounded-tr-full" />
-        <div className="absolute bottom-0 right-0 w-6 h-6 border-l-2 border-white rounded-tl-full" />
+        <div className="absolute top-0 left-0 w-5 h-5 border-r-2 border-white rounded-br-full" />
+        <div className="absolute top-0 right-0 w-5 h-5 border-l-2 border-white rounded-bl-full" />
+        <div className="absolute bottom-0 left-0 w-5 h-5 border-r-2 border-white rounded-tr-full" />
+        <div className="absolute bottom-0 right-0 w-5 h-5 border-l-2 border-white rounded-tl-full" />
       </div>
 
       {/* Teams */}
       <div className="absolute inset-0 flex flex-col pointer-events-none">
         {/* Team A (top half) */}
-        <div className="relative flex-1 flex flex-col items-center justify-around pt-4 pb-12">
+        <div className="relative flex-1 flex flex-col items-center justify-around pt-4 pb-10">
           {/* Forwards */}
           <div className="w-full px-4">
             <div className="flex justify-around">
               {forwardsA.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="red" />
+                <PlayerMarker key={player.id} player={player} color="red" isMobile={isMobile} />
               ))}
             </div>
           </div>
@@ -69,7 +71,7 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-around">
               {midfieldersA.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="red" />
+                <PlayerMarker key={player.id} player={player} color="red" isMobile={isMobile} />
               ))}
             </div>
           </div>
@@ -78,7 +80,7 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-around">
               {defendersA.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="red" />
+                <PlayerMarker key={player.id} player={player} color="red" isMobile={isMobile} />
               ))}
             </div>
           </div>
@@ -87,19 +89,19 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-center">
               {goalkeepersA.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="red" isGoalkeeper />
+                <PlayerMarker key={player.id} player={player} color="red" isGoalkeeper isMobile={isMobile} />
               ))}
             </div>
           </div>
         </div>
         
         {/* Team B (bottom half) */}
-        <div className="relative flex-1 flex flex-col-reverse items-center justify-around pt-12 pb-4">
+        <div className="relative flex-1 flex flex-col-reverse items-center justify-around pt-10 pb-4">
           {/* Forwards */}
           <div className="w-full px-4">
             <div className="flex justify-around">
               {forwardsB.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="blue" />
+                <PlayerMarker key={player.id} player={player} color="blue" isMobile={isMobile} />
               ))}
             </div>
           </div>
@@ -108,7 +110,7 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-around">
               {midfieldersB.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="blue" />
+                <PlayerMarker key={player.id} player={player} color="blue" isMobile={isMobile} />
               ))}
             </div>
           </div>
@@ -117,7 +119,7 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-around">
               {defendersB.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="blue" />
+                <PlayerMarker key={player.id} player={player} color="blue" isMobile={isMobile} />
               ))}
             </div>
           </div>
@@ -126,7 +128,7 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-center">
               {goalkeepersB.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="blue" isGoalkeeper />
+                <PlayerMarker key={player.id} player={player} color="blue" isGoalkeeper isMobile={isMobile} />
               ))}
             </div>
           </div>
@@ -140,9 +142,10 @@ interface PlayerMarkerProps {
   player: Participant;
   color: string;
   isGoalkeeper?: boolean;
+  isMobile?: boolean;
 }
 
-const PlayerMarker = ({ player, color, isGoalkeeper = false }: PlayerMarkerProps) => {
+const PlayerMarker = ({ player, color, isGoalkeeper = false, isMobile = false }: PlayerMarkerProps) => {
   const [showDetails, setShowDetails] = useState(false);
   
   // Map colors to Tailwind classes
@@ -160,9 +163,12 @@ const PlayerMarker = ({ player, color, isGoalkeeper = false }: PlayerMarkerProps
     yellow: "border-yellow-600"
   };
 
+  const markerSize = isMobile ? "w-7 h-7" : "w-9 h-9";
+  const nameSize = isMobile ? "text-[9px]" : "text-xs";
+
   return (
     <motion.div 
-      className="flex flex-col items-center cursor-pointer max-w-[60px] pointer-events-auto"
+      className="flex flex-col items-center cursor-pointer max-w-[50px] pointer-events-auto"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: Math.random() * 0.5 }}
@@ -173,7 +179,7 @@ const PlayerMarker = ({ player, color, isGoalkeeper = false }: PlayerMarkerProps
         className={`
           ${colorClasses[color as keyof typeof colorClasses]} 
           ${isGoalkeeper ? 'ring-2 ring-yellow-300' : ''}
-          w-10 h-10 rounded-full flex items-center justify-center
+          ${markerSize} rounded-full flex items-center justify-center
           text-white font-bold relative mb-1 shadow-md
           border-2 ${borderClasses[color as keyof typeof borderClasses]}
         `}
@@ -194,7 +200,7 @@ const PlayerMarker = ({ player, color, isGoalkeeper = false }: PlayerMarkerProps
       </motion.div>
       
       <motion.span 
-        className="text-xs bg-black/60 text-white px-1.5 py-0.5 rounded-full whitespace-nowrap truncate max-w-full"
+        className={`${nameSize} bg-black/60 text-white px-1.5 py-0.5 rounded-full whitespace-nowrap truncate max-w-full`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}

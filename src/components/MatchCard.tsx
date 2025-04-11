@@ -1,13 +1,14 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Users, Calendar, Clock, Euro, Info, UserPlus, Bell } from "lucide-react";
+import { MapPin, Users, Calendar, Clock, Euro, Info, UserPlus, Bell, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Match, Position } from "@/types";
 import { motion } from "framer-motion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 interface MatchCardProps {
   match: Match;
@@ -85,14 +86,16 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
             </div>
           </div>
           <div className="flex flex-col items-end">
-            <span className={`text-xs px-2 py-0.5 rounded-full ${isFull ? 'bg-gray-200' : 'bg-calcio-green/20 text-calcio-green'}`}>
+            <Badge variant={isFull ? "secondary" : "outline"} className={isFull ? "bg-gray-200 hover:bg-gray-300 text-gray-700" : "bg-green-100 text-green-700 hover:bg-green-200"}>
               {match.currentParticipants}/{match.totalParticipants}
-            </span>
-            <span className="text-xs text-muted-foreground">€{match.price.toFixed(2)}</span>
+              {isFull && <span className="ml-1">Completo</span>}
+            </Badge>
+            <span className="text-xs text-muted-foreground mt-1">€{match.price.toFixed(2)}</span>
           </div>
         </div>
         {!isFull && isGoalkeeperMissing && (
           <div className="px-3 py-1 bg-orange-50 text-orange-700 text-xs flex items-center justify-center">
+            <AlertTriangle className="h-3 w-3 mr-1" />
             <span>Manca un portiere!</span>
           </div>
         )}
@@ -106,9 +109,10 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
         <div className="bg-calcio-green text-white p-4">
           <div className="flex justify-between items-center">
             <h3 className="font-bold truncate max-w-[70%]">{match.field}</h3>
-            <span className="text-xs px-2 py-1 bg-white/20 rounded-full">
+            <Badge variant={isFull ? "secondary" : "success"} className={isFull ? "bg-gray-200 hover:bg-gray-300 text-gray-700" : "bg-green-100 text-green-700 hover:bg-green-200"}>
               {match.currentParticipants}/{match.totalParticipants}
-            </span>
+              {isFull && <span className="ml-1">Completo</span>}
+            </Badge>
           </div>
         </div>
         
@@ -141,7 +145,8 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
           {!isFull && isGoalkeeperMissing && (
             <Alert variant="destructive" className="py-2 bg-orange-50 border-orange-200 text-orange-700">
               <AlertDescription className="text-xs font-medium flex items-center">
-                <span className="mr-1">⚠️</span> Manca un portiere!
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                <span>Manca un portiere!</span>
               </AlertDescription>
             </Alert>
           )}

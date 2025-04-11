@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { MapPin, Users, Calendar, Clock, Euro, ArrowLeft, User, MapPinned, Bell } from "lucide-react";
+import { MapPin, Users, Calendar, Clock, Euro, ArrowLeft, User, MapPinned, Bell, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,8 @@ import Header from "@/components/Header";
 import { Match } from "@/types";
 import { mockMatches } from "@/data/mockData";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const MatchDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +22,7 @@ const MatchDetails = () => {
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const fetchMatch = () => {
@@ -136,13 +139,24 @@ const MatchDetails = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
           >
-            <h2 className="text-2xl font-bold tracking-tight mb-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              {match.field}
-            </h2>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                {match.field}
+              </h2>
+              <Badge 
+                variant={isFull ? "secondary" : "outline"}
+                className={isFull 
+                  ? "bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium" 
+                  : "bg-green-100 text-green-700 hover:bg-green-200 font-medium"}
+              >
+                {match.currentParticipants}/{match.totalParticipants}
+                {isFull && <span className="ml-1">Completo</span>}
+              </Badge>
+            </div>
             <div className="flex items-center text-muted-foreground">
               <Users className="mr-1 h-4 w-4" />
               <span>
-                {match.currentParticipants}/{match.totalParticipants} partecipanti
+                {match.currentParticipants} partecipanti
               </span>
             </div>
           </motion.div>
@@ -242,7 +256,8 @@ const MatchDetails = () => {
                     {!isFull && isGoalkeeperMissing && (
                       <Alert variant="destructive" className="mt-4 bg-orange-50 border-orange-200 text-orange-700">
                         <AlertDescription className="text-sm font-medium flex items-center">
-                          <span className="mr-2">⚠️</span> Attenzione: manca un portiere per questa partita!
+                          <AlertTriangle className="h-4 w-4 mr-2" />
+                          <span>Attenzione: manca un portiere per questa partita!</span>
                         </AlertDescription>
                       </Alert>
                     )}
@@ -286,7 +301,7 @@ const MatchDetails = () => {
                 <h3 className="font-medium text-lg mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                   Schieramento Giocatori
                 </h3>
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-lg">
+                <div className={isMobile ? "px-1 pt-2" : "p-2 rounded-lg"}>
                   <FootballField participants={match.participants} />
                 </div>
               </CardContent>
