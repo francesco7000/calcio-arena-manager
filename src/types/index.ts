@@ -12,16 +12,18 @@ export interface Match {
   participants: Participant[];
   teamA?: string;
   teamB?: string;
+  address?: string;
 }
 
 export interface Participant {
   id: string;
   name: string;
-  position: string;
+  position: Position;
   number: number;
   team?: 'A' | 'B'; // To distinguish between teams
 }
 
 export type Position = 'GK' | 'DEF' | 'MID' | 'FWD';
 
-export type ViewMode = 'list' | 'grid' | 'calendar';
+export type ViewMode = 'list' | 'compact';
+

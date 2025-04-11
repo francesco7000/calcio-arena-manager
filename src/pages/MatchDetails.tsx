@@ -1,15 +1,16 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { MapPin, Users, Calendar, Clock, Euro, ArrowLeft, User } from "lucide-react";
+import { MapPin, Users, Calendar, Clock, Euro, ArrowLeft, User, MapPinned, Bell } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import FootballField from "@/components/FootballField";
 import Header from "@/components/Header";
 import { Match } from "@/types";
 import { mockMatches } from "@/data/mockData";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const MatchDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +19,7 @@ const MatchDetails = () => {
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
+  const [isNotifying, setIsNotifying] = useState(false);
 
   useEffect(() => {
     const fetchMatch = () => {
@@ -49,6 +51,18 @@ const MatchDetails = () => {
     }, 1000);
   };
 
+  const handleNotify = () => {
+    setIsNotifying(true);
+    // Simulación de API call
+    setTimeout(() => {
+      setIsNotifying(false);
+      toast({
+        title: "Notifica impostata!",
+        description: "Riceverai una notifica quando si libererà un posto.",
+      });
+    }, 1000);
+  };
+
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { 
       weekday: 'long', 
@@ -57,6 +71,8 @@ const MatchDetails = () => {
     };
     return new Date(dateString).toLocaleDateString('it-IT', options);
   };
+  
+  const isGoalkeeperMissing = match && !match.participants.some(p => p.position === 'GK');
 
   if (loading) {
     return (
@@ -135,105 +151,143 @@ const MatchDetails = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
+            className="space-y-6"
           >
             <Card className="overflow-hidden border-none shadow-lg">
               <CardContent className="p-0">
-                <div className="grid grid-cols-1 md:grid-cols-2">
-                  <div className="space-y-6 p-6 bg-white">
-                    <div className="space-y-4">
-                      <h3 className="font-medium text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Dettagli della partita</h3>
+                <div className="p-6 bg-white">
+                  <div className="space-y-5">
+                    <h3 className="font-medium text-lg mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Dettagli della partita</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <motion.div 
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
+                        whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                      >
+                        <div className="bg-primary/10 p-2 rounded-full">
+                          <Calendar className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Data</p>
+                          <p className="font-medium capitalize">{formatDate(match.date)}</p>
+                        </div>
+                      </motion.div>
                       
-                      <div className="space-y-4">
-                        <motion.div 
-                          className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
-                          whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                        >
-                          <div className="bg-primary/10 p-2 rounded-full">
-                            <Calendar className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Data</p>
-                            <p className="font-medium capitalize">{formatDate(match.date)}</p>
-                          </div>
-                        </motion.div>
-                        
-                        <motion.div 
-                          className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
-                          whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                        >
-                          <div className="bg-primary/10 p-2 rounded-full">
-                            <Clock className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Orario</p>
-                            <p className="font-medium">{match.time}</p>
-                          </div>
-                        </motion.div>
-                        
-                        <motion.div 
-                          className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
-                          whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                        >
-                          <div className="bg-primary/10 p-2 rounded-full">
-                            <MapPin className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Luogo</p>
-                            <p className="font-medium">{match.location}</p>
-                          </div>
-                        </motion.div>
-                        
-                        <motion.div 
-                          className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
-                          whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                        >
-                          <div className="bg-primary/10 p-2 rounded-full">
-                            <User className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Organizzatore</p>
-                            <p className="font-medium">{match.organizer}</p>
-                          </div>
-                        </motion.div>
-                        
-                        <motion.div 
-                          className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
-                          whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                        >
-                          <div className="bg-primary/10 p-2 rounded-full">
-                            <Euro className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Quota</p>
-                            <p className="font-medium">€{match.price.toFixed(2)}</p>
-                          </div>
-                        </motion.div>
-                      </div>
+                      <motion.div 
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
+                        whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                      >
+                        <div className="bg-primary/10 p-2 rounded-full">
+                          <Clock className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Orario</p>
+                          <p className="font-medium">{match.time}</p>
+                        </div>
+                      </motion.div>
+                      
+                      <motion.div 
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
+                        whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                      >
+                        <div className="bg-primary/10 p-2 rounded-full">
+                          <MapPin className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Luogo</p>
+                          <p className="font-medium">{match.location}</p>
+                        </div>
+                      </motion.div>
+                      
+                      <motion.div 
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
+                        whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                      >
+                        <div className="bg-primary/10 p-2 rounded-full">
+                          <MapPinned className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Indirizzo</p>
+                          <p className="font-medium">Via del Campo 123, Milano</p>
+                        </div>
+                      </motion.div>
+                      
+                      <motion.div 
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
+                        whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                      >
+                        <div className="bg-primary/10 p-2 rounded-full">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Organizzatore</p>
+                          <p className="font-medium">{match.organizer}</p>
+                        </div>
+                      </motion.div>
+                      
+                      <motion.div 
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
+                        whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                      >
+                        <div className="bg-primary/10 p-2 rounded-full">
+                          <Euro className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Quota</p>
+                          <p className="font-medium">€{match.price.toFixed(2)}</p>
+                        </div>
+                      </motion.div>
                     </div>
+                    
+                    {!isFull && isGoalkeeperMissing && (
+                      <Alert variant="destructive" className="mt-4 bg-orange-50 border-orange-200 text-orange-700">
+                        <AlertDescription className="text-sm font-medium flex items-center">
+                          <span className="mr-2">⚠️</span> Attenzione: manca un portiere per questa partita!
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     
                     <div className="pt-4">
                       <motion.div
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
+                        className="mt-4"
                       >
-                        <Button 
-                          className="w-full"
-                          variant={isFull ? "secondary" : "default"}
-                          disabled={isFull || isJoining}
-                          onClick={handleJoin}
-                        >
-                          {isFull 
-                            ? "Partita al completo" 
-                            : (isJoining ? "Iscrizione in corso..." : "Partecipa a questa partita")}
-                        </Button>
+                        {isFull ? (
+                          <Button 
+                            className="w-full"
+                            variant="secondary"
+                            disabled={isNotifying}
+                            onClick={handleNotify}
+                          >
+                            <Bell className="mr-2 h-5 w-5" />
+                            {isNotifying ? "Impostazione notifica..." : "Notificami se si libera un posto"}
+                          </Button>
+                        ) : (
+                          <Button 
+                            className="w-full"
+                            variant="default"
+                            disabled={isJoining}
+                            onClick={handleJoin}
+                          >
+                            <User className="mr-2 h-5 w-5" />
+                            {isJoining ? "Iscrizione in corso..." : "Partecipa a questa partita"}
+                          </Button>
+                        )}
                       </motion.div>
                     </div>
                   </div>
-                  
-                  <div className="bg-gradient-to-br from-gray-800 to-gray-900 text-white p-6">
-                    <h3 className="font-medium text-lg mb-4 text-white">Schieramento Giocatori</h3>
-                    <FootballField participants={match.participants} />
-                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="overflow-hidden border-none shadow-lg">
+              <CardContent className="p-6">
+                <h3 className="font-medium text-lg mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  Schieramento Giocatori
+                </h3>
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-lg">
+                  <FootballField participants={match.participants} />
                 </div>
               </CardContent>
             </Card>
