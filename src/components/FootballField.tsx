@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Participant } from "@/types";
 import { motion } from "framer-motion";
@@ -163,12 +164,13 @@ const PlayerMarker = ({ player, color, isGoalkeeper = false, isMobile = false }:
     yellow: "border-yellow-600"
   };
 
-  const markerSize = isMobile ? "w-7 h-7" : "w-9 h-9";
-  const nameSize = isMobile ? "text-[9px]" : "text-xs";
+  // Make player markers smaller, especially on mobile
+  const markerSize = isMobile ? "w-6 h-6" : "w-8 h-8";
+  const nameSize = isMobile ? "text-[8px]" : "text-xs";
 
   return (
     <motion.div 
-      className="flex flex-col items-center cursor-pointer max-w-[50px] pointer-events-auto"
+      className="flex flex-col items-center cursor-pointer max-w-[40px] pointer-events-auto"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: Math.random() * 0.5 }}
@@ -200,7 +202,7 @@ const PlayerMarker = ({ player, color, isGoalkeeper = false, isMobile = false }:
       </motion.div>
       
       <motion.span 
-        className={`${nameSize} bg-black/60 text-white px-1.5 py-0.5 rounded-full whitespace-nowrap truncate max-w-full`}
+        className={`${nameSize} bg-black/60 text-white px-1 py-0.5 rounded-full whitespace-nowrap truncate max-w-full`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2 }}

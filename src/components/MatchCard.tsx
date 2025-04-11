@@ -74,7 +74,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
         className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-all cursor-pointer"
         onClick={handleViewDetails}
       >
-        <div className="p-3 border-l-4 border-calcio-green flex justify-between items-center">
+        <div className={`p-3 border-l-4 ${isFull ? 'border-red-500' : 'border-calcio-green'} flex justify-between items-center`}>
           <div>
             <h3 className="font-medium text-sm">{match.field}</h3>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -86,7 +86,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
             </div>
           </div>
           <div className="flex flex-col items-end">
-            <Badge variant={isFull ? "secondary" : "outline"} className={isFull ? "bg-gray-200 hover:bg-gray-300 text-gray-700" : "bg-green-100 text-green-700 hover:bg-green-200"}>
+            <Badge variant={isFull ? "full" : "success"} className={isFull ? "" : ""}>
               {match.currentParticipants}/{match.totalParticipants}
               {isFull && <span className="ml-1">Completo</span>}
             </Badge>
@@ -106,10 +106,10 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
   return (
     <Card className="overflow-hidden animate-slide-up hover:shadow-md transition-all cursor-pointer" onClick={handleViewDetails}>
       <CardContent className="p-0">
-        <div className="bg-calcio-green text-white p-4">
+        <div className={`${isFull ? 'bg-red-500' : 'bg-calcio-green'} text-white p-4`}>
           <div className="flex justify-between items-center">
             <h3 className="font-bold truncate max-w-[70%]">{match.field}</h3>
-            <Badge variant={isFull ? "secondary" : "success"} className={isFull ? "bg-gray-200 hover:bg-gray-300 text-gray-700" : "bg-green-100 text-green-700 hover:bg-green-200"}>
+            <Badge variant={isFull ? "full" : "success"} className={isFull ? "bg-white text-red-600" : ""}>
               {match.currentParticipants}/{match.totalParticipants}
               {isFull && <span className="ml-1">Completo</span>}
             </Badge>

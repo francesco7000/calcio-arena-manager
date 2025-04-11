@@ -8,7 +8,7 @@ import { mockMatches } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { 
   List, 
-  LayoutList, 
+  LayoutList,
   Filter, 
   CheckCircle2, 
   CircleDashed 
@@ -143,110 +143,110 @@ const Index = () => {
       
       <main className="flex-1 container py-6">
         <motion.div 
-          className="space-y-4"
+          className="space-y-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="flex justify-between items-center">
-            <div>
-              <motion.h2 
-                className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                Partite della settimana
-              </motion.h2>
-              
-              <motion.p 
-                className="text-muted-foreground"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                Trova e partecipa alle partite nella tua zona.
-              </motion.p>
-            </div>
+          {/* Title and description moved to their own section */}
+          <div>
+            <motion.h2 
+              className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              Partite della settimana
+            </motion.h2>
             
-            <div className="flex items-center gap-2">
-              <motion.div 
-                className="flex bg-white p-1 rounded-lg shadow-sm border space-x-1"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 }}
+            <motion.p 
+              className="text-muted-foreground"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              Trova e partecipa alle partite nella tua zona.
+            </motion.p>
+          </div>
+          
+          {/* Controls in their own section */}
+          <div className="flex items-center gap-2 justify-end">
+            <motion.div 
+              className="flex bg-white p-1 rounded-lg shadow-sm border space-x-1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <Button 
+                variant={viewMode === "list" ? "default" : "ghost"} 
+                size="sm" 
+                onClick={() => setViewMode("list")}
+                className="rounded-md"
               >
-                <Button 
-                  variant={viewMode === "list" ? "default" : "ghost"} 
-                  size="sm" 
-                  onClick={() => setViewMode("list")}
-                  className="rounded-md"
-                >
-                  <List className="h-4 w-4 mr-1" />
-                  <span className="sr-only sm:not-sr-only sm:text-xs">Lista</span>
-                </Button>
-                <Button 
-                  variant={viewMode === "compact" ? "default" : "ghost"} 
-                  size="sm" 
-                  onClick={() => setViewMode("compact")}
-                  className="rounded-md"
-                >
-                  <LayoutList className="h-4 w-4 mr-1" />
-                  <span className="sr-only sm:not-sr-only sm:text-xs">Compatta</span>
-                </Button>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 }}
+                <List className="h-4 w-4 mr-1" />
+                <span className="sr-only sm:not-sr-only sm:text-xs">Lista</span>
+              </Button>
+              <Button 
+                variant={viewMode === "compact" ? "default" : "ghost"} 
+                size="sm" 
+                onClick={() => setViewMode("compact")}
+                className="rounded-md"
               >
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="ml-2">
-                      <Filter className="h-4 w-4 mr-1" />
-                      <span className="sr-only sm:not-sr-only sm:text-xs">Filtri</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end">
-                    <DropdownMenuLabel>Filtra partite</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem 
-                        onClick={() => handleFilterChange('all')} 
-                        className="cursor-pointer"
-                      >
-                        <div className="flex items-center w-full">
-                          {filterOption === 'all' && <CheckCircle2 className="h-4 w-4 mr-2 text-calcio-green" />}
-                          {filterOption !== 'all' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
-                          <span>Tutte le partite</span>
-                        </div>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleFilterChange('available')} 
-                        className="cursor-pointer"
-                      >
-                        <div className="flex items-center w-full">
-                          {filterOption === 'available' && <CheckCircle2 className="h-4 w-4 mr-2 text-calcio-green" />}
-                          {filterOption !== 'available' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
-                          <span>Partite con posti</span>
-                        </div>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleFilterChange('full')} 
-                        className="cursor-pointer"
-                      >
-                        <div className="flex items-center w-full">
-                          {filterOption === 'full' && <CheckCircle2 className="h-4 w-4 mr-2 text-calcio-green" />}
-                          {filterOption !== 'full' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
-                          <span>Partite al completo</span>
-                        </div>
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </motion.div>
-            </div>
+                <LayoutList className="h-4 w-4 mr-1" />
+                <span className="sr-only sm:not-sr-only sm:text-xs">Compatta</span>
+              </Button>
+            </motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="ml-2">
+                    <Filter className="h-4 w-4 mr-1" />
+                    <span className="sr-only sm:not-sr-only sm:text-xs">Filtri</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuLabel>Filtra partite</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem 
+                      onClick={() => handleFilterChange('all')} 
+                      className="cursor-pointer"
+                    >
+                      <div className="flex items-center w-full">
+                        {filterOption === 'all' && <CheckCircle2 className="h-4 w-4 mr-2 text-calcio-green" />}
+                        {filterOption !== 'all' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
+                        <span>Tutte le partite</span>
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => handleFilterChange('available')} 
+                      className="cursor-pointer"
+                    >
+                      <div className="flex items-center w-full">
+                        {filterOption === 'available' && <CheckCircle2 className="h-4 w-4 mr-2 text-calcio-green" />}
+                        {filterOption !== 'available' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
+                        <span>Partite con posti</span>
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => handleFilterChange('full')} 
+                      className="cursor-pointer"
+                    >
+                      <div className="flex items-center w-full">
+                        {filterOption === 'full' && <CheckCircle2 className="h-4 w-4 mr-2 text-calcio-green" />}
+                        {filterOption !== 'full' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
+                        <span>Partite al completo</span>
+                      </div>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </motion.div>
           </div>
 
           {renderMatches()}
