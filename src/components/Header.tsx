@@ -1,16 +1,35 @@
 
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, User, Calendar } from "lucide-react";
+import { Menu, User, Calendar, LogIn, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { motion } from "framer-motion";
 
 const Header = () => {
   const navigate = useNavigate();
+  const [isUserLoggedIn] = useState(false); // This would normally be from your auth context
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <motion.header 
+      className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       <div className="container flex h-14 items-center justify-between">
-        <div className="flex items-center">
+        <motion.div 
+          className="flex items-center"
+          whileHover={{ scale: 1.02 }}
+        >
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden">
@@ -36,29 +55,58 @@ const Header = () => {
                   <User className="h-5 w-5" />
                   Profilo
                 </Button>
+                {!isUserLoggedIn && (
+                  <Button 
+                    variant="ghost" 
+                    className="flex items-center justify-start gap-2" 
+                    onClick={() => navigate('/login')}
+                  >
+                    <LogIn className="h-5 w-5" />
+                    Accedi
+                  </Button>
+                )}
               </nav>
             </SheetContent>
           </Sheet>
-          <h1 
-            className="ml-2 text-xl font-bold tracking-tight cursor-pointer" 
+          <motion.h1 
+            className="ml-2 text-xl font-bold tracking-tight cursor-pointer bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent" 
             onClick={() => navigate('/')}
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
           >
             Calcio Arena
-          </h1>
-        </div>
+          </motion.h1>
+        </motion.div>
         
         <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => navigate('/profile')}
-          >
-            <User className="h-5 w-5" />
-            <span className="sr-only">Profilo</span>
-          </Button>
+          <div className="flex items-center">
+            {!isUserLoggedIn && (
+              <span className="text-sm text-muted-foreground mr-2 hidden sm:inline-block">Guest</span>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <User className="h-5 w-5" />
+                  <ChevronDown className="h-3 w-3 absolute bottom-1 right-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 animate-in slide-in-from-top-2">
+                <DropdownMenuLabel>Il mio account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profilo</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/admin')}>
+                  <LogIn className="mr-2 h-4 w-4" />
+                  <span>Login Admin</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
-    </header>
+    </motion.header>
   );
 };
 
