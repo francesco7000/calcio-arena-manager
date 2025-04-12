@@ -6,13 +6,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Calendar, MapPin, Users, Euro } from "lucide-react";
 import Header from "@/components/Header";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   date: z.string().min(1, { message: "La data è richiesta" }),
@@ -44,18 +44,58 @@ const CreateMatch = () => {
     },
   });
 
-  const onSubmit = (data: FormValues) => {
+  const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Convertire i dati nel formato corretto per il database
+      const matchData = {
+        date: data.date,
+        time: data.time,
+        location: data.location,
+        address: data.address,
+        field: data.field,
+        total_participants: parseInt(data.totalParticipants),
+        price: parseFloat(data.price),
+        current_participants: 0,
+      };
+      
+      // Salvare i dati in Supabase
+      const { data: insertedMatch, error } = await supabase
+        .from('matches')
+        .insert(matchData)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error("Errore durante l'inserimento:", error);
+        toast({
+          variant: "destructive",
+          title: "Errore",
+          description: "Si è verificato un errore durante la creazione della partita",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
       toast({
         title: "Partita creata",
         description: "La partita è stata creata con successo",
       });
-      navigate("/");
-    }, 1000);
+      
+      // Reindirizzare alla pagina della partita appena creata
+      navigate(`/match/${insertedMatch.id}`);
+      
+    } catch (error) {
+      console.error("Errore:", error);
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Si è verificato un errore durante la creazione della partita",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
