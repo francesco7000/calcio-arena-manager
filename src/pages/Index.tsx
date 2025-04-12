@@ -216,7 +216,7 @@ const Index = () => {
               </TabsTrigger>
               <TabsTrigger value="participating" className="flex items-center gap-2" disabled={!isAuthenticated}>
                 <UserCheck className="h-4 w-4" />
-                <span>{isAuthenticated ? "Le mie partite" : "Accedi per vedere le tue partite"}</span>
+                <span>{isAuthenticated ? "Le mie partite" : "Accedi"}</span>
               </TabsTrigger>
             </TabsList>
             
