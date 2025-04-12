@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Users, Calendar, Clock, Euro, Info, UserPlus, Bell, AlertTriangle } from "lucide-react";
@@ -74,19 +73,22 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
         className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-all cursor-pointer"
         onClick={handleViewDetails}
       >
-        <div className={`p-3 border-l-4 ${isFull ? 'border-red-300' : 'border-green-200'} flex justify-between items-center`}>
-          <div>
-            <h3 className="font-medium text-sm">{match.field}</h3>
+        <div className={`p-3 border-l-4 ${isFull ? 'border-red-300' : 'border-green-200'} flex justify-between items-start`}>
+          <div className="flex-grow min-w-0 pr-2">
+            <h3 className="font-medium text-sm truncate">{match.field}</h3>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              <span>{match.time}</span>
-              <span className="mx-1">•</span>
-              <MapPin className="h-3 w-3" />
-              <span className="truncate max-w-[150px]">{match.location}</span>
+              <Clock className="h-3 w-3 flex-shrink-0" />
+              <span className="flex-shrink-0">{match.time}</span>
+              <span className="mx-1 flex-shrink-0">•</span>
+              <MapPin className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">{match.location}</span>
             </div>
           </div>
-          <div className="flex flex-col items-end">
-            <Badge variant={isFull ? "full" : "success"} className="whitespace-nowrap">
+          <div className="flex flex-col items-end flex-shrink-0">
+            <Badge 
+              variant={isFull ? "full" : "success"} 
+              className={`whitespace-nowrap ${isFull ? 'min-w-16 text-center justify-center' : ''}`}
+            >
               {match.currentParticipants}/{match.totalParticipants}
               {isFull && <span className="ml-1">Completo</span>}
             </Badge>
