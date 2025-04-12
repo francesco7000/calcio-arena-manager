@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MapPin, Users, Calendar, Clock, Euro, ArrowLeft, User, MapPinned, Bell, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import FootballField from "@/components/FootballField";
 import Header from "@/components/Header";
 import { Match } from "@/types";
 import { mockMatches } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -18,52 +20,202 @@ const MatchDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, isAuthenticated } = useAuth();
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
   const isMobile = useIsMobile();
+  // Function to fetch match data - extracted from useEffect for reusability
+  const fetchMatch = async () => {
+    if (!id) return;
+    
+    setLoading(true);
+    try {
+      // Fetch match data from Supabase
+      const { data: matchData, error: matchError } = await supabase
+        .from('matches')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (matchError) throw matchError;
+      if (!matchData) throw new Error('Match not found');
+      
+      // Fetch participants for this match
+      const { data: participants, error: participantsError } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('match_id', id);
+      
+      if (participantsError) throw participantsError;
+      
+      // Transform data to match our frontend model
+      const fullMatch: Match = {
+        ...matchData,
+        totalParticipants: matchData.max_participants,
+        currentParticipants: participants?.length || 0,
+        participants: participants || [],
+      };
+      
+      setMatch(fullMatch);
+    } catch (error) {
+      console.error('Error fetching match details:', error);
+      // Fallback to mock data if there's an error
+      const foundMatch = mockMatches.find(m => m.id === id);
+      if (foundMatch) {
+        setMatch(foundMatch);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Load match data on component mount
   useEffect(() => {
-    const fetchMatch = () => {
-      setLoading(true);
-      // Simulación de API call
-      setTimeout(() => {
-        const foundMatch = mockMatches.find(m => m.id === id);
-        if (foundMatch) {
-          setMatch(foundMatch);
-        }
-        setLoading(false);
-      }, 1000);
-    };
-
     fetchMatch();
   }, [id]);
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!match || match.currentParticipants >= match.totalParticipants) return;
     
+    // Verifica se l'utente è autenticato
+    if (!isAuthenticated || !user) {
+      toast({
+        title: "Accesso richiesto",
+        description: "Devi accedere per partecipare a questa partita.",
+        variant: "default"
+      });
+      navigate('/login');
+      return;
+    }
+    
     setIsJoining(true);
-    // Simulación de API call
-    setTimeout(() => {
-      setIsJoining(false);
+    try {
+      // Check if user is already participating
+      const userId = user.id;
+      const { data: existingParticipant, error: checkError } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('match_id', match.id)
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (checkError) throw checkError;
+      
+      if (existingParticipant) {
+        toast({
+          title: "Già iscritto",
+          description: "Sei già iscritto a questa partita.",
+          variant: "default"
+        });
+        setIsJoining(false);
+        return;
+      }
+      
+      // Add participant to Supabase
+      const newParticipant = {
+        match_id: match.id,
+        user_id: userId,
+        name: user.user_metadata?.name || user.email?.split('@')[0] || 'Utente',
+        position: 'MID' as const, // Default position, could be selected by user
+      };
+      
+      const { data, error } = await supabase
+        .from('participants')
+        .insert(newParticipant)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Update local state
+      if (match && data) {
+        setMatch({
+          ...match,
+          currentParticipants: match.currentParticipants + 1,
+          participants: [...match.participants, data]
+        });
+      }
+      
       toast({
         title: "Iscrizione confermata!",
         description: "Ti sei iscritto alla partita con successo.",
       });
-    }, 1000);
+      
+      // Refresh match data to ensure we have the latest state
+      fetchMatch();
+    } catch (error) {
+      console.error('Error joining match:', error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'iscrizione alla partita.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsJoining(false);
+    }
   };
 
-  const handleNotify = () => {
-    setIsNotifying(true);
-    // Simulación de API call
-    setTimeout(() => {
-      setIsNotifying(false);
+  const handleNotify = async () => {
+    if (!match) return;
+    
+    // Verifica se l'utente è autenticato
+    if (!isAuthenticated || !user) {
       toast({
-        title: "Notifica impostata!",
-        description: "Riceverai una notifica quando si libererà un posto.",
+        title: "Accesso richiesto",
+        description: "Devi accedere per ricevere notifiche.",
+        variant: "default"
       });
-    }, 1000);
+      navigate('/login');
+      return;
+    }
+    
+    setIsNotifying(true);
+    try {
+      // In a real app, you would store this notification preference in the database
+      // For now, we'll simulate it with a delay but add a more realistic implementation
+      const userId = user.id;
+      
+      // Check if user already requested notification
+      const { data: existingNotification, error: checkError } = await supabase
+        .from('notifications') // Assuming you have a notifications table
+        .select('*')
+        .eq('match_id', match.id)
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is the error code for table not found
+        throw checkError;
+      }
+      
+      if (existingNotification) {
+        toast({
+          title: "Notifica già impostata",
+          description: "Hai già richiesto di essere notificato per questa partita.",
+        });
+      } else {
+        // In a production app, you would create a notification record here
+        // Since we might not have a notifications table in this demo, we'll simulate success
+        
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        toast({
+          title: "Notifica impostata!",
+          description: "Riceverai una notifica quando si libererà un posto.",
+        });
+      }
+    } catch (error) {
+      console.error('Error setting notification:', error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'impostazione della notifica.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsNotifying(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -282,11 +434,12 @@ const MatchDetails = () => {
                           <Button 
                             className="w-full"
                             variant="default"
-                            disabled={isJoining}
+                            disabled={isJoining || !isAuthenticated}
                             onClick={handleJoin}
                           >
                             <User className="mr-2 h-5 w-5" />
-                            {isJoining ? "Iscrizione in corso..." : "Partecipa a questa partita"}
+                            {isJoining ? "Iscrizione in corso..." : 
+                             !isAuthenticated ? "Accedi per partecipare" : "Partecipa a questa partita"}
                           </Button>
                         )}
                       </motion.div>

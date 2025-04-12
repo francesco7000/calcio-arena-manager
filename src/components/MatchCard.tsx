@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Users, Calendar, Clock, Euro, Info, UserPlus, Bell, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -17,25 +19,81 @@ interface MatchCardProps {
 const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, isAuthenticated } = useAuth();
   const [isJoining, setIsJoining] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
   
   const isFull = match.currentParticipants >= match.totalParticipants;
   const isGoalkeeperMissing = !match.participants.some(p => p.position === 'GK');
   
-  const handleJoin = (e: React.MouseEvent) => {
+  const handleJoin = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isFull) return;
     
+    // Verifica se l'utente è autenticato
+    if (!isAuthenticated || !user) {
+      toast({
+        title: "Accesso richiesto",
+        description: "Devi accedere per partecipare a questa partita.",
+        variant: "default"
+      });
+      navigate('/login');
+      return;
+    }
+    
     setIsJoining(true);
-    // Simulazione di una chiamata API
-    setTimeout(() => {
-      setIsJoining(false);
+    try {
+      // Verifica se l'utente è già iscritto
+      const { data: existingParticipant, error: checkError } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('match_id', match.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (checkError) throw checkError;
+      
+      if (existingParticipant) {
+        toast({
+          title: "Già iscritto",
+          description: "Sei già iscritto a questa partita.",
+          variant: "default"
+        });
+        setIsJoining(false);
+        return;
+      }
+      
+      // Aggiungi partecipante a Supabase
+      const newParticipant = {
+        match_id: match.id,
+        user_id: user.id,
+        name: user.user_metadata?.name || user.email?.split('@')[0] || 'Utente',
+        position: 'MID' as const, // Posizione predefinita
+      };
+      
+      const { error } = await supabase
+        .from('participants')
+        .insert(newParticipant);
+      
+      if (error) throw error;
+      
       toast({
         title: "Iscrizione confermata!",
         description: "Ti sei iscritto alla partita con successo.",
       });
-    }, 1000);
+      
+      // Aggiorna la pagina per mostrare i dati aggiornati
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Error joining match:', error);
+      toast({
+        title: "Errore",
+        description: error.message || "Si è verificato un errore durante l'iscrizione.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsJoining(false);
+    }
   };
 
   const handleNotify = (e: React.MouseEvent) => {
@@ -184,11 +242,12 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
             <Button 
               variant="default"
               className="w-full flex items-center gap-1"
-              disabled={isJoining}
+              disabled={isJoining || !isAuthenticated}
               onClick={handleJoin}
             >
               <UserPlus className="h-4 w-4" />
-              {isJoining ? "Iscrizione..." : "Partecipa"}
+              {isJoining ? "Iscrizione..." : 
+               !isAuthenticated ? "Accedi" : "Partecipa"}
             </Button>
           )}
         </motion.div>

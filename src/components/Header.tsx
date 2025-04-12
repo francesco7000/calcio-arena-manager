@@ -1,7 +1,7 @@
 
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, User, Calendar, LogIn, ChevronDown } from "lucide-react";
+import { Menu, User, Calendar, LogIn, LogOut, ChevronDown } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { 
@@ -16,7 +16,7 @@ import { motion } from "framer-motion";
 
 const Header = () => {
   const navigate = useNavigate();
-  const [isUserLoggedIn] = useState(false); // This would normally be from your auth context
+  const { isAuthenticated, user, signOut } = useAuth();
 
   return (
     <motion.header 
@@ -55,7 +55,7 @@ const Header = () => {
                   <User className="h-5 w-5" />
                   Profilo
                 </Button>
-                {!isUserLoggedIn && (
+                {!isAuthenticated ? (
                   <Button 
                     variant="ghost" 
                     className="flex items-center justify-start gap-2" 
@@ -63,6 +63,15 @@ const Header = () => {
                   >
                     <LogIn className="h-5 w-5" />
                     Accedi
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    className="flex items-center justify-start gap-2" 
+                    onClick={() => signOut().then(() => navigate('/'))}
+                  >
+                    <LogOut className="h-5 w-5" />
+                    Esci
                   </Button>
                 )}
               </nav>
@@ -80,9 +89,9 @@ const Header = () => {
         
         <div className="flex items-center gap-2">
           <div className="flex items-center">
-            {!isUserLoggedIn && (
-              <span className="text-sm text-muted-foreground mr-2 hidden sm:inline-block">Guest</span>
-            )}
+            <span className="text-sm text-muted-foreground mr-2 hidden sm:inline-block">
+              {isAuthenticated ? (user?.user_metadata?.name || user?.email) : 'Guest'}
+            </span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
@@ -97,9 +106,20 @@ const Header = () => {
                   <User className="mr-2 h-4 w-4" />
                   <span>Profilo</span>
                 </DropdownMenuItem>
+                {!isAuthenticated ? (
+                  <DropdownMenuItem onClick={() => navigate('/login')}>
+                    <LogIn className="mr-2 h-4 w-4" />
+                    <span>Accedi</span>
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => signOut().then(() => navigate('/'))}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Esci</span>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => navigate('/admin')}>
                   <LogIn className="mr-2 h-4 w-4" />
-                  <span>Login Admin</span>
+                  <span>Area Admin</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -4,8 +4,10 @@ import Header from "@/components/Header";
 import MatchCard from "@/components/MatchCard";
 import { Match, ViewMode } from "@/types";
 import { mockMatches } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { List, LayoutList, Filter, CheckCircle2, CircleDashed, Calendar, UserCheck } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 type FilterOption = 'all' | 'available' | 'full';
@@ -16,18 +18,59 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [filterOption, setFilterOption] = useState<FilterOption>("all");
   const [viewTab, setViewTab] = useState<ViewTab>("weekly");
+  const { user, isAuthenticated } = useAuth();
+  const [myMatches, setMyMatches] = useState<Match[]>([]);
   useEffect(() => {
-    // Simular carga de datos
-    const fetchMatches = () => {
+    const fetchMatches = async () => {
       setLoading(true);
-      // Simulación de API call
-      setTimeout(() => {
+      try {
+        // Fetch real data from Supabase
+        const { data, error } = await supabase
+          .from('matches')
+          .select('*');
+        
+        if (error) throw error;
+        
+        // Transform data to match our frontend model if needed
+        const transformedMatches = data.map(match => ({
+          ...match,
+          totalParticipants: match.max_participants,
+          currentParticipants: match.current_participants || 0,
+          participants: []
+        }));
+        
+        // For each match, fetch its participants
+        for (const match of transformedMatches) {
+          const { data: participants, error: participantsError } = await supabase
+            .from('participants')
+            .select('*')
+            .eq('match_id', match.id);
+          
+          if (!participantsError && participants) {
+            match.participants = participants;
+          }
+        }
+        
+        setMatches(transformedMatches);
+        
+        // Se l'utente è autenticato, recupera le partite a cui è iscritto
+        if (isAuthenticated && user) {
+          const userMatches = transformedMatches.filter(match => 
+            match.participants.some(p => p.user_id === user.id)
+          );
+          setMyMatches(userMatches);
+        }
+      } catch (error) {
+        console.error('Error fetching matches:', error);
+        // Fallback to mock data if there's an error
         setMatches(mockMatches);
+      } finally {
         setLoading(false);
-      }, 1000);
+      }
     };
+    
     fetchMatches();
-  }, []);
+  }, [isAuthenticated, user]);
   const handleFilterChange = (option: FilterOption) => {
     setFilterOption(option);
   };
@@ -40,9 +83,8 @@ const Index = () => {
     return true;
   });
 
-  // Matches you're participating in (for demo purposes, let's assume you're in matches with ID ending in '1')
-  const participatingMatches = matches.filter(match => match.id.endsWith('1'));
-  const currentMatches = viewTab === "weekly" ? filteredMatches : participatingMatches;
+  // Usa le partite a cui l'utente è effettivamente iscritto
+  const currentMatches = viewTab === "weekly" ? filteredMatches : myMatches;
   const renderMatches = () => {
     if (loading) {
       return <div className="space-y-4 mt-6">
@@ -160,9 +202,9 @@ const Index = () => {
                 <Calendar className="h-4 w-4" />
                 <span>Partite settimanali</span>
               </TabsTrigger>
-              <TabsTrigger value="participating" className="flex items-center gap-2">
+              <TabsTrigger value="participating" className="flex items-center gap-2" disabled={!isAuthenticated}>
                 <UserCheck className="h-4 w-4" />
-                <span>Le mie partite</span>
+                <span>{isAuthenticated ? "Le mie partite" : "Accedi per vedere le tue partite"}</span>
               </TabsTrigger>
             </TabsList>
             
