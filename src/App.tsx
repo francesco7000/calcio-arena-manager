@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import MatchDetails from "./pages/MatchDetails";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import CreateMatch from "./pages/CreateMatch";
 import NotFound from "./pages/NotFound";
 import { useEffect } from "react";
 
@@ -45,6 +46,7 @@ const App = () => {
               <Route path="/match/:id" element={<MatchDetails />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/create-match" element={<CreateMatch />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { User, Mail, Phone, MapPin, Edit, Calendar } from "lucide-react";
+import { User, Edit, Calendar } from "lucide-react";
 
 const Profile = () => {
   return (
@@ -45,47 +45,6 @@ const Profile = () => {
                       <h3 className="text-2xl font-semibold">Mario Calcetti</h3>
                       <p className="text-gray-500">Attaccante</p>
                     </div>
-                  </div>
-                  
-                  <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <motion.div 
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
-                      whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                    >
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <Mail className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Email</p>
-                        <p className="font-medium">mario.calcetti@example.com</p>
-                      </div>
-                    </motion.div>
-                    
-                    <motion.div 
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
-                      whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                    >
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <Phone className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Telefono</p>
-                        <p className="font-medium">+39 123 456 7890</p>
-                      </div>
-                    </motion.div>
-                    
-                    <motion.div 
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm sm:col-span-2"
-                      whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                    >
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <MapPin className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Indirizzo</p>
-                        <p className="font-medium">Milano, Italia</p>
-                      </div>
-                    </motion.div>
                   </div>
                 </div>
               </div>
