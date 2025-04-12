@@ -1,11 +1,78 @@
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { User, Edit, Calendar } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Match } from "@/types";
+import MatchCard from "@/components/MatchCard";
 
 const Profile = () => {
+  const { user, isAuthenticated } = useAuth();
+  const [userMatches, setUserMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserMatches = async () => {
+      if (!isAuthenticated || !user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Ottieni le partite a cui l'utente partecipa
+        const { data: participations, error: participationsError } = await supabase
+          .from('participants')
+          .select('match_id')
+          .eq('user_id', user.id);
+
+        if (participationsError) throw participationsError;
+
+        if (participations && participations.length > 0) {
+          // Estrai gli ID delle partite
+          const matchIds = participations.map(p => p.match_id);
+
+          // Ottieni i dettagli delle partite
+          const { data: matches, error: matchesError } = await supabase
+            .from('matches')
+            .select('*')
+            .in('id', matchIds);
+
+          if (matchesError) throw matchesError;
+
+          // Per ogni partita, ottieni i partecipanti
+          const matchesWithParticipants = [];
+          for (const match of matches || []) {
+            const { data: participants, error: participantsError } = await supabase
+              .from('participants')
+              .select('*')
+              .eq('match_id', match.id);
+
+            if (!participantsError) {
+              matchesWithParticipants.push({
+                ...match,
+                participants: participants || [],
+                totalParticipants: match.max_participants,
+                currentParticipants: match.current_participants || 0
+              });
+            }
+          }
+
+          setUserMatches(matchesWithParticipants);
+        }
+      } catch (error) {
+        console.error('Errore nel recupero delle partite dell\'utente:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserMatches();
+  }, [isAuthenticated, user]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
       <Header />
@@ -42,8 +109,8 @@ const Profile = () => {
                     </motion.div>
                     
                     <div className="space-y-2 text-center sm:text-left mt-4 sm:mt-16">
-                      <h3 className="text-2xl font-semibold">Mario Calcetti</h3>
-                      <p className="text-gray-500">Attaccante</p>
+                      <h3 className="text-2xl font-semibold">{user?.username || 'Utente'}</h3>
+                      <p className="text-gray-500">{user?.admin ? 'Amministratore' : 'Giocatore'}</p>
                     </div>
                   </div>
                 </div>
@@ -61,26 +128,45 @@ const Profile = () => {
               Le tue prossime partite
             </h3>
             
-            <Card className="shadow border-none overflow-hidden">
-              <CardContent className="p-8 flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <Calendar className="h-8 w-8 text-primary" />
-                </div>
-                <p className="text-gray-500 mb-4">
-                  Non sei iscritto a nessuna partita.
-                </p>
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button 
-                    onClick={() => window.location.href = '/'} 
+            {loading ? (
+              <Card className="shadow border-none overflow-hidden">
+                <CardContent className="p-8 flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 animate-pulse">
+                    <Calendar className="h-8 w-8 text-primary" />
+                  </div>
+                  <p className="text-gray-500 mb-4">
+                    Caricamento partite...
+                  </p>
+                </CardContent>
+              </Card>
+            ) : userMatches.length > 0 ? (
+              <div className="space-y-4">
+                {userMatches.map((match) => (
+                  <MatchCard key={match.id} match={match} />
+                ))}
+              </div>
+            ) : (
+              <Card className="shadow border-none overflow-hidden">
+                <CardContent className="p-8 flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                    <Calendar className="h-8 w-8 text-primary" />
+                  </div>
+                  <p className="text-gray-500 mb-4">
+                    Non sei iscritto a nessuna partita.
+                  </p>
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    Trova partite
-                  </Button>
-                </motion.div>
-              </CardContent>
-            </Card>
+                    <Button 
+                      onClick={() => window.location.href = '/'} 
+                    >
+                      Trova partite
+                    </Button>
+                  </motion.div>
+                </CardContent>
+              </Card>
+            )}
           </motion.div>
         </motion.div>
       </main>

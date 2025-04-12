@@ -76,6 +76,19 @@ const MatchDetails = () => {
     fetchMatch();
   }, [id]);
 
+  // Verifica se l'utente è già iscritto alla partita
+  const isUserParticipating = () => {
+    if (!isAuthenticated || !user || !match) return false;
+    return match.participants.some(p => p.user_id === user.id);
+  };
+
+  // Ottieni l'ID del partecipante dell'utente corrente
+  const getUserParticipantId = () => {
+    if (!isAuthenticated || !user || !match) return null;
+    const participant = match.participants.find(p => p.user_id === user.id);
+    return participant ? participant.id : null;
+  };
+
   const handleJoin = async () => {
     if (!match || match.currentParticipants >= match.totalParticipants) return;
     
@@ -117,7 +130,7 @@ const MatchDetails = () => {
       const newParticipant = {
         match_id: match.id,
         user_id: userId,
-        name: user.user_metadata?.name || user.email?.split('@')[0] || 'Utente',
+        name: user.username || 'Utente',
         position: 'MID' as const, // Default position, could be selected by user
       };
       
@@ -154,6 +167,60 @@ const MatchDetails = () => {
       });
     } finally {
       setIsJoining(false);
+    }
+  };
+
+  // Funzione per gestire la disiscrizione dalla partita
+  const [isCancelling, setIsCancelling] = useState(false);
+  
+  const handleCancelParticipation = async () => {
+    if (!match || !isAuthenticated || !user) return;
+    
+    const participantId = getUserParticipantId();
+    if (!participantId) {
+      toast({
+        title: "Errore",
+        description: "Non sei iscritto a questa partita.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsCancelling(true);
+    try {
+      // Rimuovi il partecipante dal database
+      const { error } = await supabase
+        .from('participants')
+        .delete()
+        .eq('id', participantId);
+      
+      if (error) throw error;
+      
+      // Aggiorna lo stato locale
+      if (match) {
+        setMatch({
+          ...match,
+          currentParticipants: match.currentParticipants - 1,
+          participants: match.participants.filter(p => p.id !== participantId)
+        });
+      }
+      
+      toast({
+        title: "Disiscrizione completata",
+        description: "Ti sei disiscritto dalla partita con successo.",
+      });
+      
+      // Aggiorna i dati della partita
+      fetchMatch();
+    } catch (error) {
+      console.error('Error cancelling participation:', error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la disiscrizione dalla partita.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -420,7 +487,17 @@ const MatchDetails = () => {
                         whileTap={{ scale: 0.98 }}
                         className="mt-4"
                       >
-                        {isFull ? (
+                        {isUserParticipating() ? (
+                          <Button 
+                            className="w-full"
+                            variant="destructive"
+                            disabled={isCancelling}
+                            onClick={handleCancelParticipation}
+                          >
+                            <User className="mr-2 h-5 w-5" />
+                            {isCancelling ? "Disiscrizione in corso..." : "Cancella partecipazione"}
+                          </Button>
+                        ) : isFull ? (
                           <Button 
                             className="w-full"
                             variant="secondary"

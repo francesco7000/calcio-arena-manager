@@ -26,6 +26,19 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
   const isFull = match.currentParticipants >= match.totalParticipants;
   const isGoalkeeperMissing = !match.participants.some(p => p.position === 'GK');
   
+  // Verifica se l'utente è già iscritto alla partita
+  const isUserParticipating = () => {
+    if (!isAuthenticated || !user) return false;
+    return match.participants.some(p => p.user_id === user.id);
+  };
+
+  // Ottieni l'ID del partecipante dell'utente corrente
+  const getUserParticipantId = () => {
+    if (!isAuthenticated || !user) return null;
+    const participant = match.participants.find(p => p.user_id === user.id);
+    return participant ? participant.id : null;
+  };
+
   const handleJoin = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isFull) return;
@@ -67,7 +80,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
       const newParticipant = {
         match_id: match.id,
         user_id: user.id,
-        name: user.user_metadata?.name || user.email?.split('@')[0] || 'Utente',
+        name: user.username || 'Utente',
         position: 'MID' as const, // Posizione predefinita
       };
       
@@ -93,6 +106,52 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
       });
     } finally {
       setIsJoining(false);
+    }
+  };
+
+  // Funzione per gestire la disiscrizione dalla partita
+  const [isCancelling, setIsCancelling] = useState(false);
+  
+  const handleCancelParticipation = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isAuthenticated || !user) return;
+    
+    const participantId = getUserParticipantId();
+    if (!participantId) {
+      toast({
+        title: "Errore",
+        description: "Non sei iscritto a questa partita.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsCancelling(true);
+    try {
+      // Rimuovi il partecipante dal database
+      const { error } = await supabase
+        .from('participants')
+        .delete()
+        .eq('id', participantId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Disiscrizione completata",
+        description: "Ti sei disiscritto dalla partita con successo.",
+      });
+      
+      // Aggiorna la pagina per mostrare i dati aggiornati
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Error cancelling participation:', error);
+      toast({
+        title: "Errore",
+        description: error.message || "Si è verificato un errore durante la disiscrizione.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -228,7 +287,17 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
           </Button>
         </motion.div>
         <motion.div className="flex-1" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-          {isFull ? (
+          {isUserParticipating() ? (
+            <Button 
+              variant="destructive"
+              className="w-full flex items-center gap-1"
+              onClick={handleCancelParticipation}
+              disabled={isCancelling}
+            >
+              <UserPlus className="h-4 w-4" />
+              {isCancelling ? "Disiscrizione..." : "Cancella iscrizione"}
+            </Button>
+          ) : isFull ? (
             <Button 
               variant="secondary"
               className="w-full flex items-center gap-1"

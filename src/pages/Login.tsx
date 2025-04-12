@@ -16,13 +16,13 @@ const Login = () => {
   const { toast } = useToast();
   
   // Stati per il form di login
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
   // Stati per il form di registrazione
   const [registerName, setRegisterName] = useState("");
-  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerUsername, setRegisterUsername] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -32,7 +32,7 @@ const Login = () => {
     setIsLoggingIn(true);
     
     try {
-      const { error } = await signIn(loginEmail, loginPassword);
+      const { error } = await signIn(loginUsername, loginPassword);
       
       if (error) {
         toast({
@@ -64,7 +64,7 @@ const Login = () => {
     setIsRegistering(true);
     
     try {
-      const { error, user } = await signUp(registerEmail, registerPassword, registerName);
+      const { error, user } = await signUp(registerUsername, registerPassword, registerName);
       
       if (error) {
         toast({
@@ -75,7 +75,7 @@ const Login = () => {
       } else {
         toast({
           title: "Registrazione completata",
-          description: "Ti abbiamo inviato un'email di conferma. Verifica la tua email per completare la registrazione.",
+          description: "Account creato con successo!",
         });
         // Reindirizza alla home o alla pagina di conferma
         navigate('/');
@@ -126,13 +126,13 @@ const Login = () => {
                 <form onSubmit={handleLogin}>
                   <div className="grid gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="login-email">Email</Label>
+                      <Label htmlFor="login-username">Username</Label>
                       <Input
-                        id="login-email"
-                        type="email"
-                        placeholder="nome@esempio.com"
-                        value={loginEmail}
-                        onChange={(e) => setLoginEmail(e.target.value)}
+                        id="login-username"
+                        type="text"
+                        placeholder="Inserisci il tuo username"
+                        value={loginUsername}
+                        onChange={(e) => setLoginUsername(e.target.value)}
                         required
                       />
                     </div>
@@ -186,13 +186,13 @@ const Login = () => {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="register-email">Email</Label>
+                      <Label htmlFor="register-username">Username</Label>
                       <Input
-                        id="register-email"
-                        type="email"
-                        placeholder="nome@esempio.com"
-                        value={registerEmail}
-                        onChange={(e) => setRegisterEmail(e.target.value)}
+                        id="register-username"
+                        type="text"
+                        placeholder="Scegli un username"
+                        value={registerUsername}
+                        onChange={(e) => setRegisterUsername(e.target.value)}
                         required
                       />
                     </div>

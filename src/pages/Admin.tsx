@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, LogIn, Calendar, Plus } from "lucide-react";
 import Header from "@/components/Header";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -18,27 +19,42 @@ const Admin = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     
-    // Simulación de API call
-    setTimeout(() => {
-      setIsLoggingIn(false);
-      if (username === "admin" && password === "admin") {
+    try {
+      // Verifica le credenziali con la tabella users
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .eq('admin', true)
+        .single();
+      
+      if (error || !data) {
+        toast({
+          variant: "destructive",
+          title: "Errore di accesso",
+          description: "Credenziali non valide o utente non amministratore",
+        });
+      } else {
         setIsLoggedIn(true);
         toast({
           title: "Login effettuato",
           description: "Benvenuto nell'area amministrativa",
         });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Errore di accesso",
-          description: "Credenziali non valide. Prova con admin/admin",
-        });
       }
-    }, 1000);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Errore di accesso",
+        description: "Si è verificato un errore durante l'accesso",
+      });
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   if (isLoggedIn) {

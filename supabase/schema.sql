@@ -1,5 +1,26 @@
+-- Rimuovi tutte le tabelle e i trigger esistenti
+DROP TRIGGER IF EXISTS update_title_trigger ON matches;
+DROP FUNCTION IF EXISTS update_title;
+
+DROP TRIGGER IF EXISTS update_match_participants_count_trigger ON participants;
+DROP FUNCTION IF EXISTS update_match_participants_count;
+
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS participants;
+DROP TABLE IF EXISTS matches;
+DROP TABLE IF EXISTS users;
+
 -- Abilita le estensioni necessarie
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Tabella users (utenti)
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  username TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  admin BOOLEAN DEFAULT FALSE
+);
 
 -- Tabella matches (partite)
 CREATE TABLE IF NOT EXISTS matches (
@@ -15,8 +36,23 @@ CREATE TABLE IF NOT EXISTS matches (
   max_participants INTEGER NOT NULL,
   current_participants INTEGER DEFAULT 0,
   status TEXT CHECK (status IN ('scheduled', 'in_progress', 'completed', 'cancelled')) DEFAULT 'scheduled',
-  title TEXT GENERATED ALWAYS AS (field || ' - ' || to_char(date, 'DD/MM/YYYY')) STORED
+  title TEXT,  -- Colonna separata per title
+  UNIQUE(title)
 );
+
+-- Funzione e trigger per aggiornare il campo title
+CREATE OR REPLACE FUNCTION update_title()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.title := NEW.field || ' - ' || NEW.date::TEXT;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_title_trigger
+BEFORE INSERT OR UPDATE ON matches
+FOR EACH ROW
+EXECUTE FUNCTION update_title();
 
 -- Tabella participants (partecipanti)
 CREATE TABLE IF NOT EXISTS participants (
@@ -42,7 +78,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   UNIQUE(match_id, user_id)
 );
 
--- Trigger per aggiornare il conteggio dei partecipanti
+-- Funzione e trigger per aggiornare il conteggio dei partecipanti
 CREATE OR REPLACE FUNCTION update_match_participants_count()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -80,32 +116,13 @@ INSERT INTO participants (match_id, user_id, name, position, number) VALUES
 ((SELECT id FROM matches WHERE field = 'Campo Grande' LIMIT 1), 'user-7', 'Davide', 'FWD', 7),
 ((SELECT id FROM matches WHERE field = 'Campo Grande' LIMIT 1), 'user-8', 'Stefano', 'FWD', 8);
 
--- Inserimento partecipanti di esempio (per la seconda partita)
-INSERT INTO participants (match_id, user_id, name, position, number) VALUES
-((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-9', 'Francesco', 'GK', 1),
-((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-10', 'Alessio', 'DEF', 2),
-((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-11', 'Simone', 'DEF', 3),
-((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-12', 'Matteo', 'DEF', 4),
-((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-13', 'Andrea', 'MID', 5),
-((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-14', 'Fabio', 'MID', 6),
-((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-15', 'Luca', 'MID', 7),
-((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-16', 'Giuseppe', 'FWD', 8),
-((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-17', 'Alessandro', 'FWD', 9),
-((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-18', 'Riccardo', 'FWD', 10);
-
--- Inserimento partecipanti di esempio (per la terza partita)
-INSERT INTO participants (match_id, user_id, name, position, number) VALUES
-((SELECT id FROM matches WHERE field = 'Campo Piccolo' LIMIT 1), 'user-19', 'Michele', 'DEF', 1),
-((SELECT id FROM matches WHERE field = 'Campo Piccolo' LIMIT 1), 'user-20', 'Claudio', 'DEF', 2),
-((SELECT id FROM matches WHERE field = 'Campo Piccolo' LIMIT 1), 'user-21', 'Daniele', 'DEF', 3),
-((SELECT id FROM matches WHERE field = 'Campo Piccolo' LIMIT 1), 'user-22', 'Federico', 'MID', 4),
-((SELECT id FROM matches WHERE field = 'Campo Piccolo' LIMIT 1), 'user-23', 'Marco A.', 'MID', 5),
-((SELECT id FROM matches WHERE field = 'Campo Piccolo' LIMIT 1), 'user-24', 'Leonardo', 'MID', 6),
-((SELECT id FROM matches WHERE field = 'Campo Piccolo' LIMIT 1), 'user-25', 'Salvatore', 'FWD', 7),
-((SELECT id FROM matches WHERE field = 'Campo Piccolo' LIMIT 1), 'user-26', 'Lorenzo', 'FWD', 8),
-((SELECT id FROM matches WHERE field = 'Campo Piccolo' LIMIT 1), 'user-27', 'Vincenzo', 'FWD', 9);
-
 -- Inserimento notifiche di esempio
 INSERT INTO notifications (match_id, user_id, message) VALUES
 ((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-30', 'Si è liberato un posto per la partita'),
 ((SELECT id FROM matches WHERE field = 'Campo Piccolo' LIMIT 1), 'user-31', 'Si è liberato un posto per la partita');
+
+-- Inserimento utenti di esempio
+INSERT INTO users (username, password, admin) VALUES
+('admin', 'admin', TRUE),
+('ute1', 'pass1', FALSE),
+('ute2', 'pass2', FALSE);

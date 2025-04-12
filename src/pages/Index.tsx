@@ -74,12 +74,24 @@ const Index = () => {
   const handleFilterChange = (option: FilterOption) => {
     setFilterOption(option);
   };
+  // Filtra le partite in base all'opzione selezionata e rimuovi quelle a cui l'utente è già iscritto dalla tab "weekly"
   const filteredMatches = matches.filter(match => {
+    // Se l'utente è autenticato, verifica se è già iscritto a questa partita
+    const isUserParticipating = isAuthenticated && user && 
+      match.participants.some(p => p.user_id === user.id);
+    
+    // Nella tab settimanale, escludiamo le partite a cui l'utente è già iscritto
+    if (viewTab === "weekly" && isUserParticipating) {
+      return false;
+    }
+    
+    // Applica i filtri standard
     if (filterOption === 'available') {
       return match.currentParticipants < match.totalParticipants;
     } else if (filterOption === 'full') {
       return match.currentParticipants >= match.totalParticipants;
     }
+    
     return true;
   });
 

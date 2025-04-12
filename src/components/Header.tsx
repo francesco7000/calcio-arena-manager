@@ -90,7 +90,7 @@ const Header = () => {
         <div className="flex items-center gap-2">
           <div className="flex items-center">
             <span className="text-sm text-muted-foreground mr-2 hidden sm:inline-block">
-              {isAuthenticated ? (user?.user_metadata?.name || user?.email) : 'Guest'}
+              {isAuthenticated ? user?.username : 'Guest'}
             </span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
