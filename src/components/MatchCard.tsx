@@ -74,7 +74,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
         className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-all cursor-pointer"
         onClick={handleViewDetails}
       >
-        <div className={`p-3 border-l-4 ${isFull ? 'border-red-500' : 'border-calcio-green'} flex justify-between items-center`}>
+        <div className={`p-3 border-l-4 ${isFull ? 'border-red-300' : 'border-green-200'} flex justify-between items-center`}>
           <div>
             <h3 className="font-medium text-sm">{match.field}</h3>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -86,7 +86,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
             </div>
           </div>
           <div className="flex flex-col items-end">
-            <Badge variant={isFull ? "full" : "success"} className={isFull ? "" : ""}>
+            <Badge variant={isFull ? "full" : "success"} className="whitespace-nowrap">
               {match.currentParticipants}/{match.totalParticipants}
               {isFull && <span className="ml-1">Completo</span>}
             </Badge>
@@ -94,7 +94,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
           </div>
         </div>
         {!isFull && isGoalkeeperMissing && (
-          <div className="px-3 py-1 bg-orange-50 text-orange-700 text-xs flex items-center justify-center">
+          <div className="px-3 py-1 bg-orange-50 text-orange-600 text-xs flex items-center justify-center">
             <AlertTriangle className="h-3 w-3 mr-1" />
             <span>Manca un portiere!</span>
           </div>
@@ -106,10 +106,10 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
   return (
     <Card className="overflow-hidden animate-slide-up hover:shadow-md transition-all cursor-pointer" onClick={handleViewDetails}>
       <CardContent className="p-0">
-        <div className={`${isFull ? 'bg-red-500' : 'bg-calcio-green'} text-white p-4`}>
+        <div className={`${isFull ? 'bg-red-300' : 'bg-green-200'} ${isFull ? 'text-red-800' : 'text-green-800'} p-4`}>
           <div className="flex justify-between items-center">
             <h3 className="font-bold truncate max-w-[70%]">{match.field}</h3>
-            <Badge variant={isFull ? "full" : "success"} className={isFull ? "bg-white text-red-600" : ""}>
+            <Badge variant={isFull ? "full" : "success"} className={isFull ? "bg-white text-red-500" : ""}>
               {match.currentParticipants}/{match.totalParticipants}
               {isFull && <span className="ml-1">Completo</span>}
             </Badge>
@@ -118,32 +118,32 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
         
         <div className="p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-calcio-green" />
+            <Calendar className="h-4 w-4 text-green-600" />
             <span className="text-sm capitalize">{formatDate(match.date)}</span>
           </div>
           
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-calcio-green" />
+            <Clock className="h-4 w-4 text-green-600" />
             <span className="text-sm">{match.time}</span>
           </div>
           
           <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-calcio-green" />
+            <MapPin className="h-4 w-4 text-green-600" />
             <span className="text-sm truncate">{match.location}</span>
           </div>
           
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-calcio-green" />
+            <Users className="h-4 w-4 text-green-600" />
             <span className="text-sm">Organizz.: {match.organizer}</span>
           </div>
           
           <div className="flex items-center gap-2">
-            <Euro className="h-4 w-4 text-calcio-green" />
+            <Euro className="h-4 w-4 text-green-600" />
             <span className="text-sm">Quota: €{match.price.toFixed(2)}</span>
           </div>
           
           {!isFull && isGoalkeeperMissing && (
-            <Alert variant="destructive" className="py-2 bg-orange-50 border-orange-200 text-orange-700">
+            <Alert variant="destructive" className="py-2 bg-orange-50 border-orange-200 text-orange-600">
               <AlertDescription className="text-xs font-medium flex items-center">
                 <AlertTriangle className="h-3 w-3 mr-1" />
                 <span>Manca un portiere!</span>

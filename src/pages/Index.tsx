@@ -148,7 +148,7 @@ const Index = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {/* Title and description moved to their own section */}
+          {/* Title and description in their own section */}
           <div>
             <motion.h2 
               className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
@@ -169,7 +169,7 @@ const Index = () => {
             </motion.p>
           </div>
           
-          {/* Controls in their own section */}
+          {/* Controls in their own section with improved mobile labels */}
           <div className="flex items-center gap-2 justify-end">
             <motion.div 
               className="flex bg-white p-1 rounded-lg shadow-sm border space-x-1"
@@ -184,7 +184,7 @@ const Index = () => {
                 className="rounded-md"
               >
                 <List className="h-4 w-4 mr-1" />
-                <span className="sr-only sm:not-sr-only sm:text-xs">Lista</span>
+                <span className="hidden sm:inline text-xs">Lista</span>
               </Button>
               <Button 
                 variant={viewMode === "compact" ? "default" : "ghost"} 
@@ -193,7 +193,7 @@ const Index = () => {
                 className="rounded-md"
               >
                 <LayoutList className="h-4 w-4 mr-1" />
-                <span className="sr-only sm:not-sr-only sm:text-xs">Compatta</span>
+                <span className="hidden sm:inline text-xs">Compatta</span>
               </Button>
             </motion.div>
             
@@ -206,7 +206,7 @@ const Index = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="ml-2">
                     <Filter className="h-4 w-4 mr-1" />
-                    <span className="sr-only sm:not-sr-only sm:text-xs">Filtri</span>
+                    <span className="hidden sm:inline text-xs">Filtri</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end">
@@ -218,7 +218,7 @@ const Index = () => {
                       className="cursor-pointer"
                     >
                       <div className="flex items-center w-full">
-                        {filterOption === 'all' && <CheckCircle2 className="h-4 w-4 mr-2 text-calcio-green" />}
+                        {filterOption === 'all' && <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />}
                         {filterOption !== 'all' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
                         <span>Tutte le partite</span>
                       </div>
@@ -228,7 +228,7 @@ const Index = () => {
                       className="cursor-pointer"
                     >
                       <div className="flex items-center w-full">
-                        {filterOption === 'available' && <CheckCircle2 className="h-4 w-4 mr-2 text-calcio-green" />}
+                        {filterOption === 'available' && <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />}
                         {filterOption !== 'available' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
                         <span>Partite con posti</span>
                       </div>
@@ -238,7 +238,7 @@ const Index = () => {
                       className="cursor-pointer"
                     >
                       <div className="flex items-center w-full">
-                        {filterOption === 'full' && <CheckCircle2 className="h-4 w-4 mr-2 text-calcio-green" />}
+                        {filterOption === 'full' && <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />}
                         {filterOption !== 'full' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
                         <span>Partite al completo</span>
                       </div>

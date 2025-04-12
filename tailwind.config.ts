@@ -64,13 +64,13 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				calcio: {
-					green: '#4CAF50',
-					darkGreen: '#3B8C3F',
-					blue: '#2196F3',
-					darkBlue: '#1976D2',
+					green: '#7DC283',
+					darkGreen: '#5BA25F',
+					blue: '#95C2F0',
+					darkBlue: '#5A9CE0',
 					gray: '#F5F5F5',
 					darkGray: '#333333',
-					red: '#F44336',
+					red: '#F99DA3',
 				}
 			},
 			borderRadius: {
