@@ -9,7 +9,110 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      matches: {
+        Row: {
+          address: string
+          created_at: string
+          current_participants: number
+          date: string
+          field: string
+          id: string
+          location: string
+          organizer: string
+          price: number
+          team_a: string | null
+          team_b: string | null
+          time: string
+          total_participants: number
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          current_participants?: number
+          date: string
+          field: string
+          id?: string
+          location: string
+          organizer?: string
+          price: number
+          team_a?: string | null
+          team_b?: string | null
+          time: string
+          total_participants: number
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          current_participants?: number
+          date?: string
+          field?: string
+          id?: string
+          location?: string
+          organizer?: string
+          price?: number
+          team_a?: string | null
+          team_b?: string | null
+          time?: string
+          total_participants?: number
+        }
+        Relationships: []
+      }
+      participants: {
+        Row: {
+          created_at: string
+          id: string
+          match_id: string
+          name: string
+          number: number
+          position: string
+          team: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_id: string
+          name: string
+          number: number
+          position: string
+          team?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_id?: string
+          name?: string
+          number?: number
+          position?: string
+          team?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participants_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user: {
+        Row: {
+          id: number
+          password: string
+          username: string
+        }
+        Insert: {
+          id?: number
+          password: string
+          username: string
+        }
+        Update: {
+          id?: number
+          password?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

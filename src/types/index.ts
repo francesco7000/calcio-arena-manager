@@ -1,29 +1,16 @@
 
-export interface Match {
-  id: string;
-  date: string;
-  time: string;
-  location: string;
-  organizer: string;
-  totalParticipants: number;
-  currentParticipants: number;
-  price: number;
-  field: string;
+import { Match as SupabaseMatch, Participant as SupabaseParticipant } from './database';
+
+export interface Match extends SupabaseMatch {
   participants: Participant[];
   teamA?: string;
   teamB?: string;
-  address?: string;
 }
 
-export interface Participant {
-  id: string;
-  name: string;
-  position: Position;
-  number: number;
+export interface Participant extends SupabaseParticipant {
   team?: 'A' | 'B'; // To distinguish between teams
 }
 
 export type Position = 'GK' | 'DEF' | 'MID' | 'FWD';
 
 export type ViewMode = 'list' | 'compact';
-

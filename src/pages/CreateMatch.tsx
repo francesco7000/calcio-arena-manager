@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Calendar, MapPin, Users, Euro } from "lucide-react";
 import Header from "@/components/Header";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { InsertMatch } from "@/types/database";
 
 const formSchema = z.object({
   date: z.string().min(1, { message: "La data è richiesta" }),
@@ -44,18 +46,51 @@ const CreateMatch = () => {
     },
   });
 
-  const onSubmit = (data: FormValues) => {
+  const onSubmit = async (data: FormValues) => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Convert string values to appropriate types
+      const matchData: InsertMatch = {
+        date: data.date,
+        time: data.time,
+        location: data.location,
+        address: data.address,
+        field: data.field,
+        total_participants: parseInt(data.totalParticipants),
+        price: parseFloat(data.price),
+        current_participants: 0,
+      };
+      
+      // Insert the match into Supabase
+      const { data: insertedMatch, error } = await supabase
+        .from('matches')
+        .insert(matchData)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
       toast({
         title: "Partita creata",
         description: "La partita è stata creata con successo",
       });
-      navigate("/");
-    }, 1000);
+      
+      if (insertedMatch) {
+        navigate(`/match/${insertedMatch.id}`);
+      } else {
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("Error creating match:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la creazione della partita",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
