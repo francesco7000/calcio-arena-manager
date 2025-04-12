@@ -18,7 +18,6 @@ import {
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
 import { Match, Participant } from "@/types";
-import { supabase } from "@/integrations/supabase/client";
 
 interface MatchActionsProps {
   match: Match;
@@ -32,91 +31,40 @@ const MatchActions = ({ match, onRemoveParticipant }: MatchActionsProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [participantToRemove, setParticipantToRemove] = useState<string | null>(null);
 
-  const handleNotifyAll = async () => {
+  const handleNotifyAll = () => {
     setIsNotifying(true);
     
-    try {
-      // In un'implementazione reale, qui invieresti notifiche ai partecipanti
-      // Simuliamo un ritardo per mostrare lo stato di caricamento
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+    // Simulate API call
+    setTimeout(() => {
+      setIsNotifying(false);
       toast({
         title: "Notifica inviata",
         description: `Tutti i ${match.participants.length} partecipanti sono stati notificati`,
       });
-    } catch (error) {
-      console.error("Errore durante l'invio delle notifiche:", error);
-      toast({
-        variant: "destructive",
-        title: "Errore",
-        description: "Si è verificato un errore durante l'invio delle notifiche",
-      });
-    } finally {
-      setIsNotifying(false);
-    }
+    }, 1500);
   };
 
-  const handleDeleteMatch = async () => {
+  const handleDeleteMatch = () => {
     setIsDeleting(true);
     
-    try {
-      // Eliminare la partita dal database
-      const { error } = await supabase
-        .from('matches')
-        .delete()
-        .eq('id', match.id);
-      
-      if (error) {
-        throw error;
-      }
-      
+    // Simulate API call
+    setTimeout(() => {
+      setIsDeleting(false);
       toast({
         title: "Partita eliminata",
         description: "La partita è stata eliminata con successo",
       });
-      
       navigate("/");
-    } catch (error) {
-      console.error("Errore durante l'eliminazione:", error);
-      toast({
-        variant: "destructive",
-        title: "Errore",
-        description: "Si è verificato un errore durante l'eliminazione della partita",
-      });
-    } finally {
-      setIsDeleting(false);
-    }
+    }, 1500);
   };
   
-  const confirmRemoveParticipant = async (id: string) => {
-    try {
-      // Eliminare il partecipante dal database
-      const { error } = await supabase
-        .from('participants')
-        .delete()
-        .eq('id', id);
-      
-      if (error) {
-        throw error;
-      }
-      
-      // Aggiornare l'UI
-      if (onRemoveParticipant) {
-        onRemoveParticipant(id);
-      }
-      
+  const confirmRemoveParticipant = (id: string) => {
+    if (onRemoveParticipant) {
+      onRemoveParticipant(id);
       setParticipantToRemove(null);
-      
       toast({
         title: "Partecipante rimosso",
         description: "Il partecipante è stato rimosso dalla partita",
-      });
-    } catch (error) {
-      console.error("Errore durante la rimozione del partecipante:", error);
-      toast({
-        variant: "destructive",
-        title: "Errore",
-        description: "Si è verificato un errore durante la rimozione del partecipante",
       });
     }
   };
