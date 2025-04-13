@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, LogIn, UserPlus } from "lucide-react";
@@ -12,7 +12,7 @@ import { motion } from "framer-motion";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
   const { toast } = useToast();
   
   // Stati per il form di login
@@ -20,11 +20,7 @@ const Login = () => {
   const [loginPassword, setLoginPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
-  // Stati per il form di registrazione
-  const [registerName, setRegisterName] = useState("");
-  const [registerUsername, setRegisterUsername] = useState("");
-  const [registerPassword, setRegisterPassword] = useState("");
-  const [isRegistering, setIsRegistering] = useState(false);
+
 
   // Gestione del login
   const handleLogin = async (e: React.FormEvent) => {
@@ -58,38 +54,7 @@ const Login = () => {
     }
   };
 
-  // Gestione della registrazione
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsRegistering(true);
-    
-    try {
-      const { error, user } = await signUp(registerUsername, registerPassword, registerName);
-      
-      if (error) {
-        toast({
-          title: "Errore di registrazione",
-          description: error.message,
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Registrazione completata",
-          description: "Account creato con successo!",
-        });
-        // Reindirizza alla home o alla pagina di conferma
-        navigate('/');
-      }
-    } catch (error: any) {
-      toast({
-        title: "Errore",
-        description: error.message || "Si è verificato un errore durante la registrazione.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsRegistering(false);
-    }
-  };
+
 
   return (
     <div className="container max-w-md mx-auto py-10">
@@ -107,14 +72,7 @@ const Login = () => {
           Torna alla home
         </Button>
         
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Accedi</TabsTrigger>
-            <TabsTrigger value="register">Registrati</TabsTrigger>
-          </TabsList>
-          
-          {/* Tab di Login */}
-          <TabsContent value="login">
+
             <Card>
               <CardHeader>
                 <CardTitle>Accedi</CardTitle>
@@ -160,68 +118,6 @@ const Login = () => {
                 </form>
               </CardContent>
             </Card>
-          </TabsContent>
-          
-          {/* Tab di Registrazione */}
-          <TabsContent value="register">
-            <Card>
-              <CardHeader>
-                <CardTitle>Crea un account</CardTitle>
-                <CardDescription>
-                  Registrati per partecipare alle partite di calcio.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleRegister}>
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="register-name">Nome completo</Label>
-                      <Input
-                        id="register-name"
-                        type="text"
-                        placeholder="Mario Rossi"
-                        value={registerName}
-                        onChange={(e) => setRegisterName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="register-username">Username</Label>
-                      <Input
-                        id="register-username"
-                        type="text"
-                        placeholder="Scegli un username"
-                        value={registerUsername}
-                        onChange={(e) => setRegisterUsername(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="register-password">Password</Label>
-                      <Input
-                        id="register-password"
-                        type="password"
-                        value={registerPassword}
-                        onChange={(e) => setRegisterPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <Button type="submit" disabled={isRegistering}>
-                      {isRegistering ? (
-                        <>Registrazione in corso...</>
-                      ) : (
-                        <>
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Registrati
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
       </motion.div>
     </div>
   );

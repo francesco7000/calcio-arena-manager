@@ -9,10 +9,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import MatchDetails from "./pages/MatchDetails";
 import Profile from "./pages/Profile";
-import Admin from "./pages/Admin";
 import CreateMatch from "./pages/CreateMatch";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import FormationEditor from "./pages/FormationEditor";
 import "./App.css";
 import { useEffect } from "react";
 
@@ -47,9 +47,9 @@ function App() {
                 <Route path="/" element={<Index />} />
                 <Route path="/match/:id" element={<MatchDetails />} />
                 <Route path="/profile" element={<Profile />} />
-                <Route path="/admin" element={<Admin />} />
                 <Route path="/create-match" element={<CreateMatch />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/formation/:id" element={<FormationEditor />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

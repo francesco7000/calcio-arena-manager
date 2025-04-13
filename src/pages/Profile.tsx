@@ -1,17 +1,19 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { User, Edit, Calendar } from "lucide-react";
+import { User, Edit, Calendar, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Match } from "@/types";
 import MatchCard from "@/components/MatchCard";
 
 const Profile = () => {
-  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, isAdmin } = useAuth();
   const [userMatches, setUserMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -111,6 +113,21 @@ const Profile = () => {
                     <div className="space-y-2 text-center sm:text-left mt-4 sm:mt-16">
                       <h3 className="text-2xl font-semibold">{user?.username || 'Utente'}</h3>
                       <p className="text-gray-500">{user?.admin ? 'Amministratore' : 'Giocatore'}</p>
+                      {isAdmin && (
+                        <motion.div
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="mt-2"
+                        >
+                          <Button 
+                            onClick={() => navigate('/create-match')} 
+                            className="flex items-center gap-2"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Crea nuova partita
+                          </Button>
+                        </motion.div>
+                      )}
                     </div>
                   </div>
                 </div>

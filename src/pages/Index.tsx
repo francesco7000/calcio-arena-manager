@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import Header from "@/components/Header";
 import MatchCard from "@/components/MatchCard";
 import { Match, ViewMode } from "@/types";
-import { mockMatches } from "@/data/mockData";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { List, LayoutList, Filter, CheckCircle2, CircleDashed, Calendar, UserCheck } from "lucide-react";
@@ -62,8 +61,7 @@ const Index = () => {
         }
       } catch (error) {
         console.error('Error fetching matches:', error);
-        // Fallback to mock data if there's an error
-        setMatches(mockMatches);
+        setMatches([]);
       } finally {
         setLoading(false);
       }

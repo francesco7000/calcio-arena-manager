@@ -117,10 +117,6 @@ const Header = () => {
                     <span>Esci</span>
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => navigate('/admin')}>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  <span>Area Admin</span>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

@@ -103,9 +103,9 @@ const CreateMatch = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <Button variant="ghost" onClick={() => navigate('/admin')} className="mb-4 group">
+          <Button variant="ghost" onClick={() => navigate('/profile')} className="mb-4 group">
             <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-            Torna al pannello admin
+            Torna al profilo
           </Button>
         </motion.div>
         

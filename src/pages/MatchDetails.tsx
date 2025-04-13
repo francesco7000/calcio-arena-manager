@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import FootballField from "@/components/FootballField";
 import Header from "@/components/Header";
 import { Match } from "@/types";
-import { mockMatches } from "@/data/mockData";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +19,7 @@ const MatchDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isAdmin } = useAuth();
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
@@ -61,11 +60,7 @@ const MatchDetails = () => {
       setMatch(fullMatch);
     } catch (error) {
       console.error('Error fetching match details:', error);
-      // Fallback to mock data if there's an error
-      const foundMatch = mockMatches.find(m => m.id === id);
-      if (foundMatch) {
-        setMatch(foundMatch);
-      }
+
     } finally {
       setLoading(false);
     }
@@ -528,9 +523,20 @@ const MatchDetails = () => {
             
             <Card className="overflow-hidden border-none shadow-lg">
               <CardContent className="p-6">
-                <h3 className="font-medium text-lg mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                  Schieramento Giocatori
-                </h3>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-medium text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    Schieramento Giocatori
+                  </h3>
+                  {isAdmin && isUserParticipating() && (
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2"
+                      onClick={() => navigate(`/formation/${match.id}`)}
+                    >
+                      <span className="font-medium">Formazione</span>
+                    </Button>
+                  )}
+                </div>
                 <div className={isMobile ? "px-1 pt-2" : "p-2 rounded-lg"}>
                   <FootballField participants={match.participants} />
                 </div>

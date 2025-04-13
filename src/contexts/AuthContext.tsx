@@ -13,7 +13,6 @@ type AuthContextType = {
   user: CustomUser | null;
   isLoading: boolean;
   signIn: (username: string, password: string) => Promise<{ error: any }>;
-  signUp: (username: string, password: string, name: string) => Promise<{ error: any, user: any }>;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -93,63 +92,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Funzione per la registrazione
-  const signUp = async (username: string, password: string, name: string) => {
-    try {
-      // Verifica se l'username è già in uso
-      const { data: existingUser, error: checkError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('username', username)
-        .single();
-      
-      if (existingUser) {
-        return { error: { message: 'Username già in uso' }, user: null };
-      }
-      
-      // Crea un nuovo utente
-      const { data, error } = await supabase
-        .from('users')
-        .insert([
-          { username, password, admin: false }
-        ])
-        .select()
-        .single();
-      
-      if (error) {
-        return { error, user: null };
-      }
-      
-      const customUser: CustomUser = {
-        id: data.id,
-        username: data.username,
-        admin: data.admin
-      };
-      
-      // Salva l'utente nel localStorage
-      localStorage.setItem('user', JSON.stringify(customUser));
-      
-      // Aggiorna lo stato
-      setUser(customUser);
-      setIsAuthenticated(true);
-      setIsAdmin(data.admin);
-      
-      return { error: null, user: customUser };
-    } catch (error) {
-      console.error('Errore durante la registrazione:', error);
-      return { error: { message: 'Si è verificato un errore durante la registrazione' }, user: null };
-    }
-  };
+
 
   // Funzione per il logout
   const signOut = async () => {
-    // Rimuovi l'utente dal localStorage
-    localStorage.removeItem('user');
+    // Pulisci completamente il localStorage
+    localStorage.clear();
     
     // Aggiorna lo stato
     setUser(null);
     setIsAuthenticated(false);
     setIsAdmin(false);
+    
+    // Forza il refresh della pagina per pulire completamente lo stato
+    window.location.reload();
   };
 
   const value = {
@@ -157,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     isLoading,
     signIn,
-    signUp,
+
     signOut,
     isAuthenticated,
     isAdmin
