@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Participant } from "@/types";
 import { motion } from "framer-motion";
@@ -6,10 +5,19 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FootballFieldProps {
   participants: Participant[];
+  onPositionChange?: (participantId: string, x: number, y: number) => void;
+  initialPositions?: {[key: string]: {x: number, y: number}} | null;
+  editable?: boolean;
 }
 
-const FootballField = ({ participants }: FootballFieldProps) => {
+const FootballField = ({ 
+  participants, 
+  onPositionChange,
+  initialPositions,
+  editable = false 
+}: FootballFieldProps) => {
   const isMobile = useIsMobile();
+  
   // Split participants into teams
   const teamA = participants.filter(p => !p.team || p.team === 'A');
   const teamB = participants.filter(p => p.team === 'B');
@@ -24,6 +32,19 @@ const FootballField = ({ participants }: FootballFieldProps) => {
   const defendersB = teamB.filter(p => p.position === 'DEF');
   const midfieldersB = teamB.filter(p => p.position === 'MID');
   const forwardsB = teamB.filter(p => p.position === 'FWD');
+
+  const handleDragEnd = (participantId: string, x: number, y: number) => {
+    if (editable && onPositionChange) {
+      onPositionChange(participantId, x, y);
+    }
+  };
+
+  const getInitialPosition = (participantId: string) => {
+    if (initialPositions && initialPositions[participantId]) {
+      return initialPositions[participantId];
+    }
+    return undefined;
+  };
 
   return (
     <div className="relative w-full min-h-[500px] sm:min-h-[600px] bg-gradient-to-b from-calcio-green to-calcio-darkGreen rounded-lg overflow-hidden border-2 border-white shadow-xl">
@@ -63,7 +84,15 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-around">
               {forwardsA.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="red" isMobile={isMobile} />
+                <PlayerMarker 
+                  key={player.id} 
+                  player={player} 
+                  color="red" 
+                  isMobile={isMobile} 
+                  editable={editable}
+                  onDragEnd={handleDragEnd}
+                  initialPosition={getInitialPosition(player.id)}
+                />
               ))}
             </div>
           </div>
@@ -72,7 +101,15 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-around">
               {midfieldersA.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="red" isMobile={isMobile} />
+                <PlayerMarker 
+                  key={player.id} 
+                  player={player} 
+                  color="red" 
+                  isMobile={isMobile}
+                  editable={editable}
+                  onDragEnd={handleDragEnd}
+                  initialPosition={getInitialPosition(player.id)}
+                />
               ))}
             </div>
           </div>
@@ -81,7 +118,15 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-around">
               {defendersA.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="red" isMobile={isMobile} />
+                <PlayerMarker 
+                  key={player.id} 
+                  player={player} 
+                  color="red" 
+                  isMobile={isMobile}
+                  editable={editable}
+                  onDragEnd={handleDragEnd}
+                  initialPosition={getInitialPosition(player.id)}
+                />
               ))}
             </div>
           </div>
@@ -90,7 +135,16 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-center">
               {goalkeepersA.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="red" isGoalkeeper isMobile={isMobile} />
+                <PlayerMarker 
+                  key={player.id} 
+                  player={player} 
+                  color="red" 
+                  isGoalkeeper 
+                  isMobile={isMobile}
+                  editable={editable}
+                  onDragEnd={handleDragEnd}
+                  initialPosition={getInitialPosition(player.id)}
+                />
               ))}
             </div>
           </div>
@@ -102,7 +156,15 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-around">
               {forwardsB.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="blue" isMobile={isMobile} />
+                <PlayerMarker 
+                  key={player.id} 
+                  player={player} 
+                  color="blue" 
+                  isMobile={isMobile}
+                  editable={editable}
+                  onDragEnd={handleDragEnd}
+                  initialPosition={getInitialPosition(player.id)}
+                />
               ))}
             </div>
           </div>
@@ -111,7 +173,15 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-around">
               {midfieldersB.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="blue" isMobile={isMobile} />
+                <PlayerMarker 
+                  key={player.id} 
+                  player={player} 
+                  color="blue" 
+                  isMobile={isMobile}
+                  editable={editable}
+                  onDragEnd={handleDragEnd}
+                  initialPosition={getInitialPosition(player.id)}
+                />
               ))}
             </div>
           </div>
@@ -120,7 +190,15 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-around">
               {defendersB.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="blue" isMobile={isMobile} />
+                <PlayerMarker 
+                  key={player.id} 
+                  player={player} 
+                  color="blue" 
+                  isMobile={isMobile}
+                  editable={editable}
+                  onDragEnd={handleDragEnd}
+                  initialPosition={getInitialPosition(player.id)}
+                />
               ))}
             </div>
           </div>
@@ -129,7 +207,16 @@ const FootballField = ({ participants }: FootballFieldProps) => {
           <div className="w-full px-4">
             <div className="flex justify-center">
               {goalkeepersB.map((player) => (
-                <PlayerMarker key={player.id} player={player} color="blue" isGoalkeeper isMobile={isMobile} />
+                <PlayerMarker 
+                  key={player.id} 
+                  player={player} 
+                  color="blue" 
+                  isGoalkeeper 
+                  isMobile={isMobile}
+                  editable={editable}
+                  onDragEnd={handleDragEnd}
+                  initialPosition={getInitialPosition(player.id)}
+                />
               ))}
             </div>
           </div>
@@ -144,9 +231,20 @@ interface PlayerMarkerProps {
   color: string;
   isGoalkeeper?: boolean;
   isMobile?: boolean;
+  editable?: boolean;
+  onDragEnd?: (participantId: string, x: number, y: number) => void;
+  initialPosition?: {x: number, y: number};
 }
 
-const PlayerMarker = ({ player, color, isGoalkeeper = false, isMobile = false }: PlayerMarkerProps) => {
+const PlayerMarker = ({ 
+  player, 
+  color, 
+  isGoalkeeper = false, 
+  isMobile = false,
+  editable = false,
+  onDragEnd,
+  initialPosition
+}: PlayerMarkerProps) => {
   const [showDetails, setShowDetails] = useState(false);
   
   // Map colors to Tailwind classes
@@ -168,6 +266,12 @@ const PlayerMarker = ({ player, color, isGoalkeeper = false, isMobile = false }:
   const markerSize = isMobile ? "w-6 h-6" : "w-8 h-8";
   const nameSize = isMobile ? "text-[8px]" : "text-xs";
 
+  const handleDragEnd = (info: any) => {
+    if (editable && onDragEnd) {
+      onDragEnd(player.id, info.point.x, info.point.y);
+    }
+  };
+
   return (
     <motion.div 
       className="flex flex-col items-center cursor-pointer max-w-[40px] pointer-events-auto"
@@ -176,6 +280,12 @@ const PlayerMarker = ({ player, color, isGoalkeeper = false, isMobile = false }:
       transition={{ duration: 0.3, delay: Math.random() * 0.5 }}
       whileHover={{ scale: 1.1 }}
       onClick={() => setShowDetails(!showDetails)}
+      drag={editable}
+      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+      dragElastic={0.2}
+      dragMomentum={false}
+      onDragEnd={handleDragEnd}
+      ...(initialPosition ? { initial: { x: initialPosition.x, y: initialPosition.y } } : {})
     >
       <motion.div 
         className={`
@@ -184,6 +294,7 @@ const PlayerMarker = ({ player, color, isGoalkeeper = false, isMobile = false }:
           ${markerSize} rounded-full flex items-center justify-center
           text-white font-bold relative mb-1 shadow-md
           border-2 ${borderClasses[color as keyof typeof borderClasses]}
+          ${editable ? 'cursor-move' : 'cursor-pointer'}
         `}
         whileHover={{ y: -2 }}
       >
