@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Participant } from "@/types";
 import { motion } from "framer-motion";
@@ -285,7 +286,7 @@ const PlayerMarker = ({
       dragElastic={0.2}
       dragMomentum={false}
       onDragEnd={handleDragEnd}
-      ...(initialPosition ? { initial: { x: initialPosition.x, y: initialPosition.y } } : {})
+      {...(initialPosition ? { initial: { x: initialPosition.x, y: initialPosition.y } } : {})}
     >
       <motion.div 
         className={`
