@@ -10,7 +10,7 @@ export interface Match extends SupabaseMatch {
 }
 
 export interface Participant extends SupabaseParticipant {
-  team?: 'A' | 'B'; // To distinguish between teams
+  team?: 'A' | 'B' | string; // To distinguish between teams, allowing string from database
 }
 
 export type Position = 'GK' | 'DEF' | 'MID' | 'FWD';
