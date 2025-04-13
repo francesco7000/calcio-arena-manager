@@ -9,8 +9,8 @@ export interface Match extends SupabaseMatch {
   teamB?: string;
 }
 
-export interface Participant extends Omit<SupabaseParticipant, 'team'> {
-  team?: 'A' | 'B' | string; // Allow both the typed version and string from database
+export interface Participant extends SupabaseParticipant {
+  team?: 'A' | 'B'; // To distinguish between teams
 }
 
 export type Position = 'GK' | 'DEF' | 'MID' | 'FWD';

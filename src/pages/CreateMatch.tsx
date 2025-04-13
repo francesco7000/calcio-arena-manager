@@ -57,7 +57,7 @@ const CreateMatch = () => {
         location: data.location,
         address: data.address,
         field: data.field,
-        max_participants: parseInt(data.totalParticipants), // Changed from total_participants to max_participants
+        total_participants: parseInt(data.totalParticipants),
         price: parseFloat(data.price),
         current_participants: 0,
       };
