@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MapPin, Users, Calendar, Clock, Euro, ArrowLeft, User, MapPinned, Bell, AlertTriangle } from "lucide-react";
@@ -8,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import FootballField from "@/components/FootballField";
 import Header from "@/components/Header";
-import { Match } from "@/types";
+import ParticipantsList from "@/components/ParticipantsList";
+import { Match, Participant } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -254,6 +256,26 @@ const MatchDetails = () => {
     }
   };
 
+  const handleParticipantAdded = (newParticipant: Participant) => {
+    if (match) {
+      setMatch({
+        ...match,
+        currentParticipants: match.currentParticipants + 1,
+        participants: [...match.participants, newParticipant]
+      });
+    }
+  };
+
+  const handleParticipantRemoved = (participantId: string) => {
+    if (match) {
+      setMatch({
+        ...match,
+        currentParticipants: match.currentParticipants - 1,
+        participants: match.participants.filter(p => p.id !== participantId)
+      });
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { 
       weekday: 'long', 
@@ -495,26 +517,13 @@ const MatchDetails = () => {
               </CardContent>
             </Card>
             
-            <Card className="overflow-hidden border-none shadow-lg">
-              <CardHeader className="pb-0">
-                <CardTitle className="text-lg font-medium bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                  Partecipanti
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 pt-4">
-                {match.participants.length > 0 ? (
-                  <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                    {match.participants.map((participant) => (
-                      <li key={participant.id} className="bg-gray-50 px-3 py-2 rounded-md text-sm">
-                        {participant.name}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-gray-500">Nessun partecipante ancora iscritto.</p>
-                )}
-              </CardContent>
-            </Card>
+            {/* Separate card for participants list */}
+            <ParticipantsList 
+              matchId={match.id}
+              participants={match.participants}
+              onParticipantAdded={handleParticipantAdded}
+              onParticipantRemoved={handleParticipantRemoved}
+            />
             
             <Card className="overflow-hidden border-none shadow-lg">
               <CardContent className="p-6">

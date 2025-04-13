@@ -1,91 +1,64 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Calendar, Clock, MapPin, Euro } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Calendar, MapPin, Users, Euro } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import Header from "@/components/Header";
-import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { InsertMatch } from "@/types/database";
-
-const formSchema = z.object({
-  date: z.string().min(1, { message: "La data è richiesta" }),
-  time: z.string().min(1, { message: "L'ora è richiesta" }),
-  location: z.string().min(1, { message: "Il luogo è richiesto" }),
-  address: z.string().min(1, { message: "L'indirizzo è richiesto" }),
-  field: z.string().min(1, { message: "Il campo è richiesto" }),
-  totalParticipants: z.string().min(1, { message: "Il numero di partecipanti è richiesto" }),
-  price: z.string().min(1, { message: "Il prezzo è richiesto" }),
-});
-
-type FormValues = z.infer<typeof formSchema>;
 
 const CreateMatch = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [field, setField] = useState("");
+  const [location, setLocation] = useState("");
+  const [address, setAddress] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [price, setPrice] = useState("");
+  const [maxParticipants, setMaxParticipants] = useState("");
+  const [organizer, setOrganizer] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      date: "",
-      time: "",
-      location: "",
-      address: "",
-      field: "",
-      totalParticipants: "",
-      price: "",
-    },
-  });
-
-  const onSubmit = async (data: FormValues) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setIsSubmitting(true);
     
     try {
-      // Convert string values to appropriate types
-      const matchData: InsertMatch = {
-        date: data.date,
-        time: data.time,
-        location: data.location,
-        address: data.address,
-        field: data.field,
-        total_participants: parseInt(data.totalParticipants),
-        price: parseFloat(data.price),
-        current_participants: 0,
+      const newMatch = {
+        field: field,
+        location: location,
+        address: address,
+        date: date,
+        time: time,
+        price: Number(price),
+        max_participants: Number(maxParticipants), // Fixed property name
+        organizer: organizer
       };
       
-      // Insert the match into Supabase
-      const { data: insertedMatch, error } = await supabase
+      const { data, error } = await supabase
         .from('matches')
-        .insert(matchData)
+        .insert([newMatch])
         .select()
         .single();
-        
-      if (error) throw error;
+      
+      if (error) {
+        throw error;
+      }
       
       toast({
-        title: "Partita creata",
-        description: "La partita è stata creata con successo",
+        title: "Partita creata!",
+        description: "La partita è stata creata con successo.",
       });
-      
-      if (insertedMatch) {
-        navigate(`/match/${insertedMatch.id}`);
-      } else {
-        navigate("/");
-      }
+      navigate('/');
     } catch (error) {
       console.error("Error creating match:", error);
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante la creazione della partita",
+        description: "Si è verificato un errore durante la creazione della partita.",
         variant: "destructive"
       });
     } finally {
@@ -99,165 +72,134 @@ const CreateMatch = () => {
       
       <main className="flex-1 container py-6">
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
         >
-          <Button variant="ghost" onClick={() => navigate('/profile')} className="mb-4 group">
-            <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-            Torna al profilo
+          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4 group">
+            Indietro
           </Button>
         </motion.div>
         
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="space-y-6"
+          transition={{ duration: 0.4, delay: 0.2 }}
         >
-          <h2 className="text-2xl font-bold tracking-tight mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Crea Nuova Partita
-          </h2>
-          
-          <Card className="border-none shadow-lg">
-            <CardHeader>
-              <CardTitle>Informazioni Partita</CardTitle>
-              <CardDescription>
-                Inserisci tutti i dettagli per la nuova partita
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="date"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Data</FormLabel>
-                          <FormControl>
-                            <div className="flex items-center space-x-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <Input type="date" {...field} />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="time"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Ora</FormLabel>
-                          <FormControl>
-                            <div className="flex items-center space-x-2">
-                              <Input type="time" {...field} />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="location"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Luogo</FormLabel>
-                          <FormControl>
-                            <div className="flex items-center space-x-2">
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <Input placeholder="Centro Sportivo San Siro" {...field} />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="address"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Indirizzo</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Via del Campo, 10, Milano" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="field"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Campo</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Campo A" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="totalParticipants"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Numero partecipanti</FormLabel>
-                          <FormControl>
-                            <div className="flex items-center space-x-2">
-                              <Users className="h-4 w-4 text-muted-foreground" />
-                              <Input type="number" min="2" placeholder="10" {...field} />
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            Inserisci il numero totale di giocatori per questa partita
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="price"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Prezzo</FormLabel>
-                          <FormControl>
-                            <div className="flex items-center space-x-2">
-                              <Euro className="h-4 w-4 text-muted-foreground" />
-                              <Input type="number" min="0" step="0.01" placeholder="10.00" {...field} />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+          <Card className="overflow-hidden border-none shadow-lg">
+            <CardContent className="p-6">
+              <h2 className="text-2xl font-bold tracking-tight mb-4">Crea una nuova partita</h2>
+              
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="field">Campo</Label>
+                    <Input
+                      type="text"
+                      id="field"
+                      value={field}
+                      onChange={(e) => setField(e.target.value)}
+                      placeholder="Nome del campo"
+                      required
                     />
                   </div>
-                  
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? (
-                        <div className="flex items-center">
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Creazione in corso...
-                        </div>
-                      ) : "Crea Partita"}
-                    </Button>
+                  <div>
+                    <Label htmlFor="location">Luogo</Label>
+                    <Input
+                      type="text"
+                      id="location"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="Città"
+                      required
+                    />
                   </div>
-                </form>
-              </Form>
+                </div>
+                
+                <div>
+                  <Label htmlFor="address">Indirizzo</Label>
+                  <Input
+                    type="text"
+                    id="address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Via e numero civico"
+                    required
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="date" className="flex items-center">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Data
+                    </Label>
+                    <Input
+                      type="date"
+                      id="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="time" className="flex items-center">
+                      <Clock className="mr-2 h-4 w-4" />
+                      Orario
+                    </Label>
+                    <Input
+                      type="time"
+                      id="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="price" className="flex items-center">
+                      <Euro className="mr-2 h-4 w-4" />
+                      Quota
+                    </Label>
+                    <Input
+                      type="number"
+                      id="price"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      placeholder="Costo di partecipazione"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="maxParticipants">Numero massimo di partecipanti</Label>
+                    <Input
+                      type="number"
+                      id="maxParticipants"
+                      value={maxParticipants}
+                      onChange={(e) => setMaxParticipants(e.target.value)}
+                      placeholder="Numero massimo"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="organizer">Organizzatore</Label>
+                    <Input
+                      type="text"
+                      id="organizer"
+                      value={organizer}
+                      onChange={(e) => setOrganizer(e.target.value)}
+                      placeholder="Nome dell'organizzatore"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <Button disabled={isSubmitting} className="w-full">
+                  {isSubmitting ? "Creazione in corso..." : "Crea partita"}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </motion.div>

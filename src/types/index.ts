@@ -9,7 +9,7 @@ export interface Match extends SupabaseMatch {
   teamB?: string;
 }
 
-export interface Participant extends SupabaseParticipant {
+export interface Participant extends Omit<SupabaseParticipant, 'team'> {
   team?: 'A' | 'B' | string; // To distinguish between teams, allowing string from database
 }
 
