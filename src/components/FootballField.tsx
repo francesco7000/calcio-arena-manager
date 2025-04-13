@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Participant } from "@/types";
+import { motion } from "framer-motion";
 
 interface FootballFieldProps {
   participants: Participant[];
@@ -17,8 +18,7 @@ const FootballField: React.FC<FootballFieldProps> = ({
   const fieldRef = useRef<HTMLDivElement>(null);
   const [positions, setPositions] = useState<{[key: string]: {x: number, y: number}}>({});
   const [fieldSize, setFieldSize] = useState({ width: 0, height: 0 });
-  const [activePlayer, setActivePlayer] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dragConstraintsRef = useRef<HTMLDivElement>(null);
   
   // Misura le dimensioni del campo
   useEffect(() => {
@@ -38,9 +38,19 @@ const FootballField: React.FC<FootballFieldProps> = ({
   useEffect(() => {
     if (fieldSize.width === 0 || fieldSize.height === 0) return;
     
-    // Se abbiamo posizioni iniziali, le usiamo
+    // Se abbiamo posizioni iniziali e sono valide, le usiamo
     if (initialPositions && Object.keys(initialPositions).length > 0) {
-      setPositions(initialPositions);
+      // Verifica che le posizioni rientrino nei limiti del campo
+      const validPositions: {[key: string]: {x: number, y: number}} = {};
+      
+      Object.entries(initialPositions).forEach(([id, pos]) => {
+        // Assicurati che le coordinate siano all'interno del campo
+        const validX = Math.max(0, Math.min(fieldSize.width, pos.x));
+        const validY = Math.max(0, Math.min(fieldSize.height, pos.y));
+        validPositions[id] = { x: validX, y: validY };
+      });
+      
+      setPositions(validPositions);
       return;
     }
     
@@ -93,107 +103,56 @@ const FootballField: React.FC<FootballFieldProps> = ({
     setPositions(defaultPositions);
   }, [fieldSize, initialPositions, participants]);
   
-  // Gestione manuale del trascinamento
-  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent, playerId: string) => {
-    if (!editable) return;
-    
-    //e.preventDefault();
-    setActivePlayer(playerId);
-    
-    // Calcola l'offset per il trascinamento
-    const playerPosition = positions[playerId];
-    if (!playerPosition) return;
-    
-    const fieldRect = fieldRef.current?.getBoundingClientRect();
-    if (!fieldRect) return;
-    
-    // Calcola dove è stato cliccato rispetto al centro del giocatore
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    setDragOffset({
-      x: playerPosition.x - (clientX - fieldRect.left),
-      y: playerPosition.y - (clientY - fieldRect.top)
+
+
+  const handleDrag = (playerId: string, event: MouseEvent | TouchEvent, info: any) => {
+    if (!editable || !info) return;  // Aggiungiamo un controllo per `info`
+  
+    // Se info esiste, aggiorniamo la posizione
+    setPositions(prev => {
+      const prevPos = prev[playerId] || { x: 0, y: 0 };
+      
+      const deltaX = info.delta?.x ?? 0;
+      const deltaY = info.delta?.y ?? 0;
+  
+      return {
+        ...prev,
+        [playerId]: {
+          x: prevPos.x + deltaX,
+          y: prevPos.y + deltaY,
+        }
+      };
     });
-    
-    // Aggiungi event listener per il movimento e il rilascio
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('touchend', handleMouseUp);
   };
   
-  const handleTouchMove = (e: TouchEvent) => {
-    e.preventDefault(); // Previene lo scrolling durante il trascinamento
-    handleMove(e.touches[0].clientX, e.touches[0].clientY);
+  const handleDragEnd = (playerId: string, info: any) => {
+    console.log(info);
+    // Se il campo non è editabile o non c'è una funzione per notificare il cambiamento, esci
+    if (!editable || !onPositionChange) return;
+  
+    // Calcola la posizione finale in base alle informazioni di trascinamento
+    const fieldRect = fieldRef.current?.getBoundingClientRect();
+    console.log(fieldRect)
+    const x = info.point.x - (fieldRect?.left || 0); // Calcoliamo la posizione X relativa al campo
+    const y = info.point.y - (fieldRect?.top || 0);  // Calcoliamo la posizione Y relativa al campo
+  
+    // Normalizza le coordinate in base alla larghezza e altezza del campo
+    const normalizedX = x - 20;
+    const normalizedY = y - 20;
+  
+    // Notifica al componente genitore con le nuove coordinate
+    onPositionChange(playerId, normalizedX, normalizedY);
   };
   
-  const handleMouseMove = (e: MouseEvent) => {
-    handleMove(e.clientX, e.clientY);
-  };
-  
-  const handleMove = (clientX: number, clientY: number) => {
-    if (!activePlayer || !fieldRef.current) return;
-    
-    const fieldRect = fieldRef.current.getBoundingClientRect();
-    
-    // Calcola la nuova posizione considerando l'offset iniziale
-    let newX = (clientX - fieldRect.left) + dragOffset.x;
-    let newY = (clientY - fieldRect.top) + dragOffset.y;
-    
-    // Limita la posizione all'interno del campo
-    newX = Math.max(0, Math.min(fieldRect.width, newX));
-    newY = Math.max(0, Math.min(fieldRect.height, newY));
-    
-    // Aggiorna la posizione
-    setPositions(prev => ({
-      ...prev,
-      [activePlayer]: { x: newX, y: newY }
-    }));
-  };
-  
-  const handleMouseUp = () => {
-    if (!activePlayer || !onPositionChange) {
-      setActivePlayer(null);
-      // Rimuovi gli event listener
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('touchend', handleMouseUp);
-      return;
-    }
-    
-    // Notifica il componente genitore delle nuove coordinate
-    const position = positions[activePlayer];
-    if (position) {
-      onPositionChange(activePlayer, position.x, position.y);
-    }
-    
-    // Resetta lo stato di trascinamento
-    setActivePlayer(null);
-    
-    // Rimuovi gli event listener
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('touchmove', handleTouchMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-    document.removeEventListener('touchend', handleMouseUp);
-  };
-  
-  // Quando il componente viene smontato, rimuovi tutti gli event listener
-  useEffect(() => {
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('touchend', handleMouseUp);
-    };
-  }, []);
   
   return (
     <div 
       ref={fieldRef}
       className="relative w-full h-[500px] sm:h-[600px] bg-gradient-to-b from-calcio-green to-calcio-darkGreen rounded-lg overflow-hidden border-2 border-white shadow-xl"
     >
+      {/* Area di vincolo per il trascinamento */}
+      <div ref={dragConstraintsRef} className="absolute inset-0" />
+      
       {/* Marcature del campo */}
       <FieldMarkings />
       
@@ -204,14 +163,15 @@ const FootballField: React.FC<FootballFieldProps> = ({
         return (
           <Player
             key={player.id}
+            id={`player-${player.id}`}
             player={player}
             position={pos}
-            isActive={player.id === activePlayer}
             team={player.team || 'A'}
             isGoalkeeper={player.position === 'GK'}
             editable={editable}
-            onMouseDown={(e) => handleMouseDown(e, player.id)}
-            onTouchStart={(e) => handleMouseDown(e, player.id)}
+            dragConstraints={dragConstraintsRef}
+            onDrag={(_, info) => handleDrag(player.id, info)}
+            onDragEnd={(_, info) => handleDragEnd(player.id, info)}
           />
         );
       })}
@@ -249,34 +209,35 @@ const FieldMarkings = () => (
   </div>
 );
 
-// Componente Player
+
 interface PlayerProps {
+  id: string;
   player: Participant;
   position: { x: number, y: number };
-  isActive: boolean;
   team: string;
   isGoalkeeper?: boolean;
   editable?: boolean;
-  onMouseDown: (e: React.MouseEvent) => void;
-  onTouchStart: (e: React.TouchEvent) => void;
+  dragConstraints?: React.RefObject<HTMLDivElement>;
+  onDrag?: (e: MouseEvent | TouchEvent, info: any) => void;
+  onDragEnd?: (e: MouseEvent | TouchEvent, info: any) => void;
 }
 
 const Player: React.FC<PlayerProps> = ({
+  id,
   player,
   position,
-  isActive,
   team,
   isGoalkeeper = false,
   editable = false,
-  onMouseDown,
-  onTouchStart
+  dragConstraints,
+  onDrag,
+  onDragEnd
 }) => {
   const [showDetails, setShowDetails] = useState(false);
-  
+
   // Colore della squadra
   const color = team === 'A' ? 'red' : 'blue';
-  
-  // Classi Tailwind per i colori
+
   const colorClasses = {
     red: "bg-red-500 hover:bg-red-600",
     blue: "bg-blue-500 hover:bg-blue-600"
@@ -286,65 +247,65 @@ const Player: React.FC<PlayerProps> = ({
     red: "border-red-700",
     blue: "border-blue-700"
   };
-  
-  // Dimensioni del marcatore e del nome
+
   const markerSize = "w-8 h-8 sm:w-10 sm:h-10";
   const nameSize = "text-xs";
-  
-  // Gestisce il clic per mostrare i dettagli
+
   const handleClick = (e: React.MouseEvent) => {
     if (!editable) {
-      e.preventDefault();
       e.stopPropagation();
       setShowDetails(!showDetails);
     }
   };
-  
+
   return (
-    <div
-      className={`absolute flex flex-col items-center ${isActive ? 'z-20' : 'z-10'}`}
-      style={{
-        left: position.x + 'px',
-        top: position.y + 'px',
-        transform: 'translate(-50%, -50%)',
-        transition: isActive ? 'none' : 'transform 0.1s'
-      }}
+    <motion.div
+      id={id}
+      className="absolute flex flex-col items-center pointer-events-auto z-10"
+      style={{ transform: "translate(-50%, -50%)" }}
+      animate={{ x: position.x, y: position.y }}
+      drag={editable}
+      dragMomentum={false}
+      dragElastic={0}
+      dragConstraints={dragConstraints}
+      onDrag={onDrag}
+      onDragEnd={onDragEnd}
     >
-      <div
+      <motion.div
         className={`
           ${colorClasses[color as keyof typeof colorClasses]} 
           ${isGoalkeeper ? 'ring-2 ring-yellow-300' : ''}
           ${markerSize} rounded-full flex items-center justify-center
           text-white font-bold shadow-md mb-1
           border-2 ${borderClasses[color as keyof typeof borderClasses]}
-          ${isActive ? 'scale-110' : ''}
           ${editable ? 'cursor-move' : 'cursor-pointer'}
-          touch-action-none
+          touch-none
         `}
+        whileHover={{ scale: 1.1 }}
         onClick={handleClick}
-        onMouseDown={editable ? onMouseDown : undefined}
-        onTouchStart={editable ? onTouchStart : undefined}
-        style={{ touchAction: 'none' }}
       >
         {player.number}
-        
+
         {showDetails && (
-          <div 
-            className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-1 bg-black/80 text-white text-xs p-1.5 rounded whitespace-nowrap z-30"
+          <motion.div 
+            className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-1 bg-black/80 text-white text-xs p-1.5 rounded whitespace-nowrap z-20"
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
           >
             <div className="font-semibold">{player.name}</div>
             <div className="text-[10px] opacity-80">{player.position}</div>
-          </div>
+          </motion.div>
         )}
-      </div>
-      
-      <span 
+      </motion.div>
+
+      <motion.span 
         className={`${nameSize} bg-black/60 text-white px-1 py-0.5 rounded-full whitespace-nowrap truncate max-w-full`}
       >
         {player.name.split(' ')[0]}
-      </span>
-    </div>
+      </motion.span>
+    </motion.div>
   );
 };
+
 
 export default FootballField;

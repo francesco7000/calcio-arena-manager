@@ -14,13 +14,32 @@ const FormationEditor = () => {
   const { id: matchId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const editable = true;
+  const editable = true; // TODO: Implement editable option
   const { user } = useAuth();
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [playerPositions, setPlayerPositions] = useState<{ [key: string]: { x: number, y: number } }>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [fieldDimensions, setFieldDimensions] = useState({ width: 0, height: 0 });
+
+  // Monitora le dimensioni del campo
+  useEffect(() => {
+    const updateFieldDimensions = () => {
+      const fieldElement = document.querySelector('.football-field-container');
+      if (fieldElement) {
+        const rect = fieldElement.getBoundingClientRect();
+        setFieldDimensions({ width: rect.width, height: rect.height });
+      }
+    };
+
+    updateFieldDimensions();
+    window.addEventListener('resize', updateFieldDimensions);
+    
+    return () => {
+      window.removeEventListener('resize', updateFieldDimensions);
+    };
+  }, [match]);
 
   // Fetch match data and formations
   const fetchMatch = useCallback(async () => {
@@ -60,39 +79,14 @@ const FormationEditor = () => {
         .eq('match_id', matchId)
         .maybeSingle();
 
-      // Imposta match prima di processare la formazione
-      setMatch(fullMatch);
-
       // Handle formation data
       if (formationData && formationData.positions) {
         try {
-          let positions;
-          
-          // Gestisce sia oggetti JSON che stringhe JSON
-          if (typeof formationData.positions === 'string') {
-            positions = JSON.parse(formationData.positions);
-          } else if (typeof formationData.positions === 'object') {
-            positions = formationData.positions;
-          }
-          
-          // Verifica che le posizioni siano valide
-          const validPositions: {[key: string]: {x: number, y: number}} = {};
-          
-          // Verifica che ogni ID sia associato a un partecipante esistente
-          Object.entries(positions).forEach(([id, pos]) => {
-            if (fullMatch.participants.some(p => p.id === id) && 
-                typeof pos === 'object' && 
-                'x' in pos && 
-                'y' in pos) {
-              validPositions[id] = {
-                x: Number(pos.x),
-                y: Number(pos.y)
-              };
-            }
-          });
-          
-          console.log("Posizioni caricate:", validPositions);
-          setPlayerPositions(validPositions);
+          const positions = typeof formationData.positions === 'string' 
+            ? JSON.parse(formationData.positions) 
+            : formationData.positions;
+            
+          setPlayerPositions(positions);
         } catch (parseError) {
           console.error('Error parsing formation positions:', parseError);
           setPlayerPositions({});
@@ -101,6 +95,7 @@ const FormationEditor = () => {
         setPlayerPositions({});
       }
 
+      setMatch(fullMatch);
       setHasChanges(false);
     } catch (error) {
       console.error('Error fetching match details:', error);
@@ -120,10 +115,7 @@ const FormationEditor = () => {
 
   // Handle position changes
   const handlePositionChange = (participantId: string, x: number, y: number) => {
-    // Verifica che l'ID appartenga a un partecipante valido
-    if (!match?.participants.some(p => p.id === participantId)) return;
-    
-    console.log(`Posizione aggiornata per ${participantId}: x=${x}, y=${y}`);
+    if (!match?.participants.find(p => p.id === participantId)) return;
     
     setPlayerPositions(prev => {
       const newPositions = {
@@ -131,37 +123,33 @@ const FormationEditor = () => {
         [participantId]: { x, y }
       };
       
+      // Sempre marca le modifiche quando cambia una posizione
       setHasChanges(true);
       return newPositions;
     });
   };
 
   // Save formation to database
-  const saveFormation = async () => {
+  const saveFormation2 = async () => {
+   
     if (!matchId || !hasChanges) return;
 
     setSaving(true);
 
     try {
-      console.log("Salvataggio posizioni:", playerPositions);
-      
-      // Verifica il formato delle posizioni prima del salvataggio
-      const formattedPositions: {[key: string]: {x: number, y: number}} = {};
+      // Verifica che tutte le posizioni siano valide prima del salvataggio
+      const validatedPositions: {[key: string]: {x: number, y: number}} = {};
       
       Object.entries(playerPositions).forEach(([id, pos]) => {
-        // Verifica che l'ID appartenga a un partecipante valido
-        if (match?.participants.some(p => p.id === id)) {
-          formattedPositions[id] = {
-            x: Number(pos.x),
-            y: Number(pos.y)
-          };
+        // Controlla che l'ID appartenga a un partecipante valido
+        if (match?.participants.find(p => p.id === id)) {
+          validatedPositions[id] = pos;
         }
       });
       
-      const stringifiedPositions = JSON.stringify(formattedPositions);
-      console.log("Posizioni serializzate:", stringifiedPositions);
+      const stringifiedPositions = JSON.stringify(validatedPositions);
 
-      // Verifica se esiste già una formazione
+      // Check if formation exists
       const { data: existingFormation, error: fetchError } = await supabase
         .from('formations')
         .select('id')
@@ -174,9 +162,8 @@ const FormationEditor = () => {
 
       let result;
       
-      // Aggiorna o inserisci in base all'esistenza
+      // Update or insert based on existence
       if (existingFormation) {
-        console.log("Aggiornamento formazione esistente:", existingFormation.id);
         result = await supabase
           .from('formations')
           .update({ 
@@ -185,7 +172,6 @@ const FormationEditor = () => {
           })
           .eq('id', existingFormation.id);
       } else {
-        console.log("Creazione nuova formazione");
         result = await supabase
           .from('formations')
           .insert({
@@ -196,13 +182,8 @@ const FormationEditor = () => {
           });
       }
 
-      if (result.error) {
-        console.error("Errore in Supabase:", result.error);
-        throw result.error;
-      }
+      if (result.error) throw result.error;
 
-      console.log("Formazione salvata con successo");
-      
       toast({
         title: "Formazione salvata",
         description: "La formazione è stata salvata con successo",
@@ -225,6 +206,78 @@ const FormationEditor = () => {
       setSaving(false);
     }
   };
+
+  const saveFormation = async () => {
+    console.log(hasChanges);
+    if (!matchId || !hasChanges) return;
+    
+    console.log('Saving formation...');  // Log per verificare
+    setSaving(true);
+    try {
+      const validatedPositions: {[key: string]: {x: number, y: number}} = {};
+      console.log(playerPositions);
+      Object.entries(playerPositions).forEach(([id, pos]) => {
+        if (match?.participants.find(p => p.id === id)) {
+          validatedPositions[id] = pos;
+        }
+      });
+      
+      const stringifiedPositions = JSON.stringify(validatedPositions);
+      console.log('Positions to save:', stringifiedPositions); // Log per verificare le posizioni
+  
+      const { data: existingFormation, error: fetchError } = await supabase
+        .from('formations')
+        .select('id')
+        .eq('match_id', matchId)
+        .maybeSingle();
+  
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
+      }
+  
+      let result;
+      if (existingFormation) {
+        result = await supabase
+          .from('formations')
+          .update({ 
+            positions: stringifiedPositions,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingFormation.id);
+      } else {
+        result = await supabase
+          .from('formations')
+          .insert({
+            match_id: matchId,
+            positions: stringifiedPositions,
+            created_by: user?.id,
+            updated_at: new Date().toISOString()
+          });
+      }
+  
+      if (result.error) throw result.error;
+  
+      toast({
+        title: "Formazione salvata",
+        description: "La formazione è stata salvata con successo",
+      });
+  
+      setHasChanges(false);
+      setTimeout(() => {
+        navigate(`/match/${matchId}`);
+      }, 800);
+    } catch (error) {
+      console.error('Error saving formation:', error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante il salvataggio della formazione.",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+  
 
   // Reset formation positions
   const resetFormation = () => {
@@ -297,7 +350,7 @@ const FormationEditor = () => {
         <div className="bg-white p-2 sm:p-4 rounded-xl shadow-md mb-4">
           <h1 className="text-xl font-bold text-center mb-2">{match.location || 'Campo'}</h1>
           
-          <div className="rounded-xl overflow-hidden shadow border border-gray-200">
+          <div className="football-field-container rounded-xl overflow-hidden shadow border border-gray-200">
             <FootballField
               participants={match.participants}
               onPositionChange={handlePositionChange}
