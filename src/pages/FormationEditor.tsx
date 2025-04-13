@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import FootballField from "@/components/FootballField";
 import Header from "@/components/Header";
@@ -15,60 +14,67 @@ const FormationEditor = () => {
   const { id: matchId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, isAuthenticated, isAdmin } = useAuth();
+  const editable = true; // TODO: Implement editable option
+  const { user } = useAuth();
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [updatedPositions, setUpdatedPositions] = useState<{[key: string]: {x: number, y: number}} | null>(null);
+  const [playerPositions, setPlayerPositions] = useState<{ [key: string]: { x: number, y: number } }>({});
+  const [hasChanges, setHasChanges] = useState(false);
 
-  const fetchMatch = async () => {
+  // Fetch match data and formations
+  const fetchMatch = useCallback(async () => {
     if (!matchId) return;
-    
+
     setLoading(true);
     try {
+      // Fetch match details
       const { data: matchData, error: matchError } = await supabase
         .from('matches')
         .select('*')
         .eq('id', matchId)
         .single();
-      
+
       if (matchError) throw matchError;
       if (!matchData) throw new Error('Match not found');
-      
+
+      // Fetch participants
       const { data: participants, error: participantsError } = await supabase
         .from('participants')
         .select('*')
         .eq('match_id', matchId);
-      
+
       if (participantsError) throw participantsError;
-      
+
       const fullMatch: Match = {
         ...matchData,
         totalParticipants: matchData.max_participants,
         currentParticipants: participants?.length || 0,
         participants: participants || [],
       };
-      
-      // Fetch existing formation if it exists
+
+      // Fetch saved formation
       const { data: formationData, error: formationError } = await supabase
         .from('formations')
         .select('positions')
         .eq('match_id', matchId)
         .single();
-      
-      if (formationError && formationError.code !== 'PGRST116') {
-        console.error('Error fetching formation:', formationError);
-      }
-      
+
+      // Handle formation data
       if (formationData && formationData.positions) {
         try {
-          setUpdatedPositions(JSON.parse(formationData.positions as string));
+          const positions = JSON.parse(formationData.positions as string);
+          setPlayerPositions(positions);
         } catch (parseError) {
           console.error('Error parsing formation positions:', parseError);
+          setPlayerPositions({});
         }
+      } else {
+        setPlayerPositions({});
       }
-      
+
       setMatch(fullMatch);
+      setHasChanges(false);
     } catch (error) {
       console.error('Error fetching match details:', error);
       toast({
@@ -79,63 +85,81 @@ const FormationEditor = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [matchId, toast]);
 
   useEffect(() => {
     fetchMatch();
-  }, [matchId]);
+  }, [fetchMatch]);
 
+  // Handle position changes
   const handlePositionChange = (participantId: string, x: number, y: number) => {
-    setUpdatedPositions(prevPositions => {
-      const newPositions = { ...prevPositions, [participantId]: { x, y } };
+    setPlayerPositions(prev => {
+      const newPositions = {
+        ...prev,
+        [participantId]: { x, y }
+      };
+      
+      // Sempre marca le modifiche quando cambia una posizione
+      setHasChanges(true);
       return newPositions;
     });
   };
 
+  // Save formation to database
   const saveFormation = async () => {
-    if (!matchId || !updatedPositions) return;
-    
+    if (!matchId || !hasChanges) return;
+
     setSaving(true);
-    
+
     try {
-      const stringifiedPositions = JSON.stringify(updatedPositions);
-      
+      const stringifiedPositions = JSON.stringify(playerPositions);
+
+      // Check if formation exists
       const { data: existingFormation, error: fetchError } = await supabase
         .from('formations')
-        .select('*')
+        .select('id')
         .eq('match_id', matchId)
         .maybeSingle();
-      
+
       if (fetchError && fetchError.code !== 'PGRST116') {
         throw fetchError;
       }
+
+      let result;
       
+      // Update or insert based on existence
       if (existingFormation) {
-        // Update existing formation
-        const { error: updateError } = await supabase
+        result = await supabase
           .from('formations')
-          .update({ positions: stringifiedPositions })
+          .update({ 
+            positions: stringifiedPositions,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', existingFormation.id);
-        
-        if (updateError) throw updateError;
       } else {
-        // Create new formation
-        const { error: insertError } = await supabase
+        result = await supabase
           .from('formations')
           .insert({
             match_id: matchId,
-            positions: stringifiedPositions
+            positions: stringifiedPositions,
+            created_by: user?.id,
+            updated_at: new Date().toISOString()
           });
-        
-        if (insertError) throw insertError;
       }
-      
+
+      if (result.error) throw result.error;
+
       toast({
         title: "Formazione salvata",
         description: "La formazione è stata salvata con successo",
       });
+
+      setHasChanges(false);
       
-      navigate(`/match/${matchId}`);
+      // Navigate back after successful save
+      setTimeout(() => {
+        navigate(`/match/${matchId}`);
+      }, 800);
     } catch (error) {
       console.error('Error saving formation:', error);
       toast({
@@ -148,12 +172,23 @@ const FormationEditor = () => {
     }
   };
 
+  // Reset formation positions
+  const resetFormation = () => {
+    // Imposta positions a un oggetto vuoto per tornare al layout di default
+    setPlayerPositions({});
+    setHasChanges(true);
+    toast({
+      title: "Formazione reimpostata",
+      description: "Le posizioni dei giocatori sono state reimpostate"
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
         <Header />
         <div className="flex-1 container py-6 flex items-center justify-center">
-          <motion.div 
+          <motion.div
             className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full"
             animate={{ rotate: 360 }}
             transition={{ duration: 1, ease: "linear", repeat: Infinity }}
@@ -172,7 +207,7 @@ const FormationEditor = () => {
             <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
             Indietro
           </Button>
-          <motion.div 
+          <motion.div
             className="text-center py-12"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -189,65 +224,54 @@ const FormationEditor = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
       <Header />
-      
       <main className="flex-1 container py-6">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4 group">
+        <div className="flex justify-between items-center mb-4">
+          <Button variant="ghost" onClick={() => navigate(-1)} className="group">
             <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
             Indietro
           </Button>
-        </motion.div>
-        
-        <div className="space-y-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-          >
-            <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              Editor Formazione
-            </h2>
-            <p className="text-muted-foreground">
-              Disponi i giocatori sul campo.
-            </p>
-          </motion.div>
           
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            className="space-y-6"
+          <Button 
+            variant="outline" 
+            onClick={resetFormation}
+            className="text-sm"
           >
-            <Card className="overflow-hidden border-none shadow-lg">
-              <CardContent className="p-6">
-                <FootballField 
-                  participants={match.participants}
-                  onPositionChange={handlePositionChange}
-                  initialPositions={updatedPositions}
-                  editable={true}
-                />
-              </CardContent>
-            </Card>
-            
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Button 
-                className="w-full"
-                variant="default"
-                disabled={saving}
-                onClick={saveFormation}
-              >
-                {saving ? "Salvataggio..." : "Salva Formazione"}
-              </Button>
-            </motion.div>
-          </motion.div>
+            Reimposta
+          </Button>
         </div>
+
+        <div className="bg-white p-2 sm:p-4 rounded-xl shadow-md mb-4">
+          <h1 className="text-xl font-bold text-center mb-2">{match.location || 'Campo'}</h1>
+          
+          <div className="rounded-xl overflow-hidden shadow border border-gray-200">
+            <FootballField
+              participants={match.participants}
+              onPositionChange={handlePositionChange}
+              initialPositions={playerPositions}
+              editable={editable}
+            />
+          </div>
+          
+          <p className="text-sm text-gray-500 mt-2 text-center">
+            {editable 
+              ? "Trascina i giocatori per posizionarli sul campo" 
+              : "Visualizzazione formazione"}
+          </p>
+        </div>
+
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Button
+            className="w-full"
+            variant="default"
+            disabled={saving || !hasChanges}
+            onClick={saveFormation}
+          >
+            {saving ? "Salvataggio in corso..." : "Salva Formazione"}
+          </Button>
+        </motion.div>
       </main>
     </div>
   );

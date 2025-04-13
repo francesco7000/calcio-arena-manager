@@ -1,8 +1,6 @@
-
-import { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Participant } from "@/types";
 import { motion } from "framer-motion";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FootballFieldProps {
   participants: Participant[];
@@ -11,299 +9,276 @@ interface FootballFieldProps {
   editable?: boolean;
 }
 
-const FootballField = ({ 
+const FootballField: React.FC<FootballFieldProps> = ({ 
   participants, 
   onPositionChange,
   initialPositions,
   editable = false 
-}: FootballFieldProps) => {
-  const isMobile = useIsMobile();
+}) => {
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const [positions, setPositions] = useState<{[key: string]: {x: number, y: number}}>({});
+  const [fieldSize, setFieldSize] = useState({ width: 0, height: 0 });
   
-  // Split participants into teams
-  const teamA = participants.filter(p => !p.team || p.team === 'A');
-  const teamB = participants.filter(p => p.team === 'B');
+  // Misura le dimensioni del campo
+  useEffect(() => {
+    const updateSize = () => {
+      if (fieldRef.current) {
+        const rect = fieldRef.current.getBoundingClientRect();
+        setFieldSize({ width: rect.width, height: rect.height });
+      }
+    };
+    
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
   
-  // Filter by position within each team
-  const goalkeepersA = teamA.filter(p => p.position === 'GK');
-  const defendersA = teamA.filter(p => p.position === 'DEF');
-  const midfieldersA = teamA.filter(p => p.position === 'MID');
-  const forwardsA = teamA.filter(p => p.position === 'FWD');
-
-  const goalkeepersB = teamB.filter(p => p.position === 'GK');
-  const defendersB = teamB.filter(p => p.position === 'DEF');
-  const midfieldersB = teamB.filter(p => p.position === 'MID');
-  const forwardsB = teamB.filter(p => p.position === 'FWD');
-
-  const handleDragEnd = (participantId: string, x: number, y: number) => {
-    if (editable && onPositionChange) {
-      onPositionChange(participantId, x, y);
+  // Inizializza le posizioni quando cambiano initialPositions o le dimensioni del campo
+  useEffect(() => {
+    if (fieldSize.width === 0 || fieldSize.height === 0) return;
+    
+    // Se abbiamo posizioni iniziali, le usiamo
+    if (initialPositions && Object.keys(initialPositions).length > 0) {
+      setPositions(initialPositions);
+      return;
+    }
+    
+    // Altrimenti, creiamo posizioni predefinite
+    const defaultPositions: {[key: string]: {x: number, y: number}} = {};
+    
+    // Organizziamo i giocatori per posizione e squadra
+    const teamA = participants.filter(p => !p.team || p.team === 'A');
+    const teamB = participants.filter(p => p.team === 'B');
+    
+    // Funzione per distribuire i giocatori orizzontalmente
+    const distributeHorizontally = (players: Participant[], yPosition: number) => {
+      const count = players.length;
+      if (count === 0) return;
+      
+      const width = fieldSize.width;
+      const spacing = width * 0.8 / Math.max(count, 1);
+      const startX = width * 0.1;
+      
+      players.forEach((player, index) => {
+        defaultPositions[player.id] = {
+          x: startX + spacing * (index + 0.5),
+          y: yPosition
+        };
+      });
+    };
+    
+    // Posiziona i giocatori della squadra A
+    const aGoalkeepers = teamA.filter(p => p.position === 'GK');
+    const aDefenders = teamA.filter(p => p.position === 'DEF');
+    const aMidfielders = teamA.filter(p => p.position === 'MID');
+    const aForwards = teamA.filter(p => p.position === 'FWD');
+    
+    distributeHorizontally(aGoalkeepers, fieldSize.height * 0.1);
+    distributeHorizontally(aDefenders, fieldSize.height * 0.25);
+    distributeHorizontally(aMidfielders, fieldSize.height * 0.4);
+    distributeHorizontally(aForwards, fieldSize.height * 0.55);
+    
+    // Posiziona i giocatori della squadra B
+    const bGoalkeepers = teamB.filter(p => p.position === 'GK');
+    const bDefenders = teamB.filter(p => p.position === 'DEF');
+    const bMidfielders = teamB.filter(p => p.position === 'MID');
+    const bForwards = teamB.filter(p => p.position === 'FWD');
+    
+    distributeHorizontally(bGoalkeepers, fieldSize.height * 0.9);
+    distributeHorizontally(bDefenders, fieldSize.height * 0.75);
+    distributeHorizontally(bMidfielders, fieldSize.height * 0.6);
+    distributeHorizontally(bForwards, fieldSize.height * 0.45);
+    
+    setPositions(defaultPositions);
+  }, [fieldSize, initialPositions, participants]);
+  
+  // Gestisce il trascinamento di un giocatore
+  const handleDrag = (playerId: string, dragInfo: any) => {
+    if (!editable || !fieldRef.current) return;
+    
+    const fieldRect = fieldRef.current.getBoundingClientRect();
+    const playerElem = document.getElementById(`player-${playerId}`);
+    
+    if (playerElem) {
+      const playerRect = playerElem.getBoundingClientRect();
+      const playerCenterX = playerRect.width / 2;
+      const playerCenterY = playerRect.height / 2;
+      
+      // Calcola la posizione relativa al campo, considerando il centro del giocatore
+      const x = Math.max(playerCenterX, Math.min(fieldRect.width - playerCenterX, dragInfo.point.x - fieldRect.left));
+      const y = Math.max(playerCenterY, Math.min(fieldRect.height - playerCenterY, dragInfo.point.y - fieldRect.top));
+      
+      // Aggiorna la posizione locale
+      setPositions(prev => ({
+        ...prev,
+        [playerId]: { x, y }
+      }));
     }
   };
-
-  const getInitialPosition = (participantId: string) => {
-    if (initialPositions && initialPositions[participantId]) {
-      return initialPositions[participantId];
+  
+  // Notifica il genitore quando il trascinamento è completato
+  const handleDragEnd = (playerId: string, dragInfo: any) => {
+    if (!editable || !fieldRef.current || !onPositionChange) return;
+    
+    const fieldRect = fieldRef.current.getBoundingClientRect();
+    const playerElem = document.getElementById(`player-${playerId}`);
+    
+    if (playerElem) {
+      const playerRect = playerElem.getBoundingClientRect();
+      const playerCenterX = playerRect.width / 2;
+      const playerCenterY = playerRect.height / 2;
+      
+      const x = Math.max(playerCenterX, Math.min(fieldRect.width - playerCenterX, dragInfo.point.x - fieldRect.left));
+      const y = Math.max(playerCenterY, Math.min(fieldRect.height - playerCenterY, dragInfo.point.y - fieldRect.top));
+      
+      // Notifica il componente genitore
+      onPositionChange(playerId, x, y);
     }
-    return undefined;
   };
-
+  
   return (
-    <div className="relative w-full min-h-[500px] sm:min-h-[600px] bg-gradient-to-b from-calcio-green to-calcio-darkGreen rounded-lg overflow-hidden border-2 border-white shadow-xl">
-      {/* Field markings */}
-      <div className="absolute inset-0">
-        {/* Center circle */}
-        <div className="absolute top-1/2 left-1/2 w-20 h-20 sm:w-28 sm:h-28 rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2" />
-        <div className="absolute top-1/2 left-1/2 w-2 h-2 sm:w-3 sm:h-3 bg-white rounded-full transform -translate-x-1/2 -translate-y-1/2" />
+    <div 
+      ref={fieldRef}
+      className="relative w-full h-[500px] sm:h-[600px] bg-gradient-to-b from-calcio-green to-calcio-darkGreen rounded-lg overflow-hidden border-2 border-white shadow-xl"
+    >
+      {/* Marcature del campo */}
+      <FieldMarkings />
+      
+      {/* Giocatori */}
+      {participants.map(player => {
+        const pos = positions[player.id] || { x: fieldSize.width / 2, y: fieldSize.height / 2 };
         
-        {/* Center line */}
-        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white transform -translate-y-1/2" />
-        
-        {/* Penalty areas */}
-        <div className="absolute top-0 left-1/2 w-36 sm:w-44 h-14 sm:h-18 border-b-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
-        <div className="absolute bottom-0 left-1/2 w-36 sm:w-44 h-14 sm:h-18 border-t-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
-        
-        {/* Goal areas */}
-        <div className="absolute top-0 left-1/2 w-18 sm:w-22 h-5 sm:h-7 border-b-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
-        <div className="absolute bottom-0 left-1/2 w-18 sm:w-22 h-5 sm:h-7 border-t-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
-        
-        {/* Penalty spots */}
-        <div className="absolute top-20 sm:top-24 left-1/2 w-2 h-2 bg-white rounded-full transform -translate-x-1/2" />
-        <div className="absolute bottom-20 sm:bottom-24 left-1/2 w-2 h-2 bg-white rounded-full transform -translate-x-1/2" />
-        
-        {/* Corner arcs */}
-        <div className="absolute top-0 left-0 w-5 h-5 border-r-2 border-white rounded-br-full" />
-        <div className="absolute top-0 right-0 w-5 h-5 border-l-2 border-white rounded-bl-full" />
-        <div className="absolute bottom-0 left-0 w-5 h-5 border-r-2 border-white rounded-tr-full" />
-        <div className="absolute bottom-0 right-0 w-5 h-5 border-l-2 border-white rounded-tl-full" />
-      </div>
-
-      {/* Teams */}
-      <div className="absolute inset-0 flex flex-col pointer-events-none">
-        {/* Team A (top half) */}
-        <div className="relative flex-1 flex flex-col items-center justify-around pt-4 pb-10">
-          {/* Forwards */}
-          <div className="w-full px-4">
-            <div className="flex justify-around">
-              {forwardsA.map((player) => (
-                <PlayerMarker 
-                  key={player.id} 
-                  player={player} 
-                  color="red" 
-                  isMobile={isMobile} 
-                  editable={editable}
-                  onDragEnd={handleDragEnd}
-                  initialPosition={getInitialPosition(player.id)}
-                />
-              ))}
-            </div>
-          </div>
-          
-          {/* Midfielders */}
-          <div className="w-full px-4">
-            <div className="flex justify-around">
-              {midfieldersA.map((player) => (
-                <PlayerMarker 
-                  key={player.id} 
-                  player={player} 
-                  color="red" 
-                  isMobile={isMobile}
-                  editable={editable}
-                  onDragEnd={handleDragEnd}
-                  initialPosition={getInitialPosition(player.id)}
-                />
-              ))}
-            </div>
-          </div>
-          
-          {/* Defenders */}
-          <div className="w-full px-4">
-            <div className="flex justify-around">
-              {defendersA.map((player) => (
-                <PlayerMarker 
-                  key={player.id} 
-                  player={player} 
-                  color="red" 
-                  isMobile={isMobile}
-                  editable={editable}
-                  onDragEnd={handleDragEnd}
-                  initialPosition={getInitialPosition(player.id)}
-                />
-              ))}
-            </div>
-          </div>
-          
-          {/* Goalkeeper */}
-          <div className="w-full px-4">
-            <div className="flex justify-center">
-              {goalkeepersA.map((player) => (
-                <PlayerMarker 
-                  key={player.id} 
-                  player={player} 
-                  color="red" 
-                  isGoalkeeper 
-                  isMobile={isMobile}
-                  editable={editable}
-                  onDragEnd={handleDragEnd}
-                  initialPosition={getInitialPosition(player.id)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        {/* Team B (bottom half) */}
-        <div className="relative flex-1 flex flex-col-reverse items-center justify-around pt-10 pb-4">
-          {/* Forwards */}
-          <div className="w-full px-4">
-            <div className="flex justify-around">
-              {forwardsB.map((player) => (
-                <PlayerMarker 
-                  key={player.id} 
-                  player={player} 
-                  color="blue" 
-                  isMobile={isMobile}
-                  editable={editable}
-                  onDragEnd={handleDragEnd}
-                  initialPosition={getInitialPosition(player.id)}
-                />
-              ))}
-            </div>
-          </div>
-          
-          {/* Midfielders */}
-          <div className="w-full px-4">
-            <div className="flex justify-around">
-              {midfieldersB.map((player) => (
-                <PlayerMarker 
-                  key={player.id} 
-                  player={player} 
-                  color="blue" 
-                  isMobile={isMobile}
-                  editable={editable}
-                  onDragEnd={handleDragEnd}
-                  initialPosition={getInitialPosition(player.id)}
-                />
-              ))}
-            </div>
-          </div>
-          
-          {/* Defenders */}
-          <div className="w-full px-4">
-            <div className="flex justify-around">
-              {defendersB.map((player) => (
-                <PlayerMarker 
-                  key={player.id} 
-                  player={player} 
-                  color="blue" 
-                  isMobile={isMobile}
-                  editable={editable}
-                  onDragEnd={handleDragEnd}
-                  initialPosition={getInitialPosition(player.id)}
-                />
-              ))}
-            </div>
-          </div>
-          
-          {/* Goalkeeper */}
-          <div className="w-full px-4">
-            <div className="flex justify-center">
-              {goalkeepersB.map((player) => (
-                <PlayerMarker 
-                  key={player.id} 
-                  player={player} 
-                  color="blue" 
-                  isGoalkeeper 
-                  isMobile={isMobile}
-                  editable={editable}
-                  onDragEnd={handleDragEnd}
-                  initialPosition={getInitialPosition(player.id)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+        return (
+          <Player
+            key={player.id}
+            id={`player-${player.id}`}
+            player={player}
+            position={pos}
+            fieldRect={fieldRef.current?.getBoundingClientRect()}
+            team={player.team || 'A'}
+            isGoalkeeper={player.position === 'GK'}
+            editable={editable}
+            onDrag={(_, info) => handleDrag(player.id, info)}
+            onDragEnd={(_, info) => handleDragEnd(player.id, info)}
+          />
+        );
+      })}
     </div>
   );
 };
 
-interface PlayerMarkerProps {
+// Componente con le marcature del campo
+const FieldMarkings = () => (
+  <div className="absolute inset-0 pointer-events-none">
+    {/* Cerchio centrale */}
+    <div className="absolute top-1/2 left-1/2 w-20 h-20 sm:w-28 sm:h-28 rounded-full border-2 border-white transform -translate-x-1/2 -translate-y-1/2" />
+    <div className="absolute top-1/2 left-1/2 w-2 h-2 sm:w-3 sm:h-3 bg-white rounded-full transform -translate-x-1/2 -translate-y-1/2" />
+    
+    {/* Linea centrale */}
+    <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white transform -translate-y-1/2" />
+    
+    {/* Aree di rigore */}
+    <div className="absolute top-0 left-1/2 w-36 sm:w-44 h-14 sm:h-16 border-b-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
+    <div className="absolute bottom-0 left-1/2 w-36 sm:w-44 h-14 sm:h-16 border-t-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
+    
+    {/* Aree di porta */}
+    <div className="absolute top-0 left-1/2 w-16 sm:w-20 h-5 sm:h-6 border-b-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
+    <div className="absolute bottom-0 left-1/2 w-16 sm:w-20 h-5 sm:h-6 border-t-2 border-l-2 border-r-2 border-white transform -translate-x-1/2" />
+    
+    {/* Dischetti del rigore */}
+    <div className="absolute top-20 sm:top-24 left-1/2 w-2 h-2 bg-white rounded-full transform -translate-x-1/2" />
+    <div className="absolute bottom-20 sm:bottom-24 left-1/2 w-2 h-2 bg-white rounded-full transform -translate-x-1/2" />
+    
+    {/* Archi d'angolo */}
+    <div className="absolute top-0 left-0 w-5 h-5 border-r-2 border-white rounded-br-full" />
+    <div className="absolute top-0 right-0 w-5 h-5 border-l-2 border-white rounded-bl-full" />
+    <div className="absolute bottom-0 left-0 w-5 h-5 border-r-2 border-white rounded-tr-full" />
+    <div className="absolute bottom-0 right-0 w-5 h-5 border-l-2 border-white rounded-tl-full" />
+  </div>
+);
+
+// Componente Player
+interface PlayerProps {
+  id: string;
   player: Participant;
-  color: string;
+  position: { x: number, y: number };
+  fieldRect?: DOMRect;
+  team: string;
   isGoalkeeper?: boolean;
-  isMobile?: boolean;
   editable?: boolean;
-  onDragEnd?: (participantId: string, x: number, y: number) => void;
-  initialPosition?: {x: number, y: number};
+  onDrag?: (e: MouseEvent | TouchEvent, info: any) => void;
+  onDragEnd?: (e: MouseEvent | TouchEvent, info: any) => void;
 }
 
-const PlayerMarker = ({ 
-  player, 
-  color, 
-  isGoalkeeper = false, 
-  isMobile = false,
+const Player: React.FC<PlayerProps> = ({
+  id,
+  player,
+  position,
+  team,
+  isGoalkeeper = false,
   editable = false,
-  onDragEnd,
-  initialPosition
-}: PlayerMarkerProps) => {
+  onDrag,
+  onDragEnd
+}) => {
   const [showDetails, setShowDetails] = useState(false);
   
-  // Map colors to Tailwind classes
+  // Colore della squadra
+  const color = team === 'A' ? 'red' : 'blue';
+  
+  // Classi Tailwind per i colori
   const colorClasses = {
     red: "bg-red-500 hover:bg-red-600",
-    blue: "bg-blue-500 hover:bg-blue-600",
-    green: "bg-green-600 hover:bg-green-700",
-    yellow: "bg-yellow-400 hover:bg-yellow-500"
+    blue: "bg-blue-500 hover:bg-blue-600"
   };
 
   const borderClasses = {
     red: "border-red-700",
-    blue: "border-blue-700",
-    green: "border-green-800",
-    yellow: "border-yellow-600"
+    blue: "border-blue-700"
   };
-
-  // Make player markers smaller, especially on mobile
-  const markerSize = isMobile ? "w-6 h-6" : "w-8 h-8";
-  const nameSize = isMobile ? "text-[8px]" : "text-xs";
-
-  const handleDragEnd = (info: any) => {
-    if (editable && onDragEnd) {
-      onDragEnd(player.id, info.point.x, info.point.y);
+  
+  // Dimensioni del marcatore e del nome
+  const markerSize = "w-8 h-8 sm:w-10 sm:h-10";
+  const nameSize = "text-xs";
+  
+  // Gestisce il clic per mostrare i dettagli
+  const handleClick = (e: React.MouseEvent) => {
+    if (!editable) {
+      e.stopPropagation();
+      setShowDetails(!showDetails);
     }
   };
-
+  
   return (
-    <motion.div 
-      className="flex flex-col items-center cursor-pointer max-w-[40px] pointer-events-auto"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: Math.random() * 0.5 }}
-      whileHover={{ scale: 1.1 }}
-      onClick={() => setShowDetails(!showDetails)}
+    <motion.div
+      id={id}
+      className="absolute flex flex-col items-center pointer-events-auto z-10"
+      style={{
+        left: position.x + 'px',
+        top: position.y + 'px',
+        transform: 'translate(-50%, -50%)'
+      }}
       drag={editable}
-      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={0.2}
       dragMomentum={false}
-      onDragEnd={handleDragEnd}
-      {...(initialPosition ? { initial: { x: initialPosition.x, y: initialPosition.y } } : {})}
+      onDrag={onDrag}
+      onDragEnd={onDragEnd}
     >
-      <motion.div 
+      <motion.div
         className={`
           ${colorClasses[color as keyof typeof colorClasses]} 
           ${isGoalkeeper ? 'ring-2 ring-yellow-300' : ''}
           ${markerSize} rounded-full flex items-center justify-center
-          text-white font-bold relative mb-1 shadow-md
+          text-white font-bold shadow-md mb-1
           border-2 ${borderClasses[color as keyof typeof borderClasses]}
           ${editable ? 'cursor-move' : 'cursor-pointer'}
         `}
-        whileHover={{ y: -2 }}
+        whileHover={{ scale: 1.1 }}
+        onClick={handleClick}
       >
         {player.number}
         
         {showDetails && (
           <motion.div 
-            className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-1 bg-black/80 text-white text-xs p-1.5 rounded whitespace-nowrap z-10"
+            className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-1 bg-black/80 text-white text-xs p-1.5 rounded whitespace-nowrap z-20"
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
           >
@@ -315,9 +290,6 @@ const PlayerMarker = ({
       
       <motion.span 
         className={`${nameSize} bg-black/60 text-white px-1 py-0.5 rounded-full whitespace-nowrap truncate max-w-full`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
       >
         {player.name.split(' ')[0]}
       </motion.span>
