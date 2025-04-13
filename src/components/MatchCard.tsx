@@ -23,16 +23,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
   const [isJoining, setIsJoining] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
   
-  // Use current_participants and max_participants if currentParticipants and totalParticipants aren't available
-  const currentParticipants = match.currentParticipants !== undefined 
-    ? match.currentParticipants 
-    : match.current_participants || 0;
-    
-  const totalParticipants = match.totalParticipants !== undefined 
-    ? match.totalParticipants 
-    : match.max_participants || 0;
-  
-  const isFull = currentParticipants >= totalParticipants;
+  const isFull = match.currentParticipants >= match.totalParticipants;
   const isGoalkeeperMissing = !match.participants.some(p => p.position === 'GK');
   
   // Verifica se l'utente è già iscritto alla partita
@@ -215,7 +206,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
               variant={isFull ? "full" : "success"} 
               className={`whitespace-nowrap ${isFull ? 'min-w-16 text-center justify-center' : ''}`}
             >
-              {currentParticipants}/{totalParticipants}
+              {match.currentParticipants}/{match.totalParticipants}
               {isFull && <span className="ml-1">Completo</span>}
             </Badge>
             <span className="text-xs text-muted-foreground mt-1">€{match.price.toFixed(2)}</span>
@@ -238,7 +229,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
           <div className="flex justify-between items-center">
             <h3 className="font-bold truncate max-w-[70%]">{match.field}</h3>
             <Badge variant={isFull ? "full" : "success"} className={isFull ? "bg-white text-red-500" : ""}>
-              {currentParticipants}/{totalParticipants}
+              {match.currentParticipants}/{match.totalParticipants}
               {isFull && <span className="ml-1">Completo</span>}
             </Badge>
           </div>
