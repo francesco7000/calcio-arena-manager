@@ -41,13 +41,17 @@ import {
 interface ParticipantsListProps {
   matchId: string;
   participants: Participant[];
+  maxParticipants: number; // Aggiunto parametro per il numero massimo di partecipanti
   onParticipantAdded: (participant: Participant) => void;
   onParticipantRemoved: (participantId: string) => void;
 }
 
+const maxParticipants = 10; // Imposta il numero massimo di partecipanti
+
 const ParticipantsList = ({
   matchId,
   participants,
+  maxParticipants, // Utilizzo del nuovo parametro
   onParticipantAdded,
   onParticipantRemoved
 }: ParticipantsListProps) => {
@@ -60,6 +64,15 @@ const ParticipantsList = ({
   const [isRemoving, setIsRemoving] = useState(false);
 
   const handleAddGuest = async () => {
+    if (participants.length >= maxParticipants) {
+      toast({
+        title: "Limite raggiunto",
+        description: "Numero massimo di partecipanti raggiunto.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!guestName) {
       toast({
         title: "Nome richiesto",
@@ -272,3 +285,11 @@ const ParticipantsList = ({
 };
 
 export default ParticipantsList;
+
+const handleAddParticipant = (newParticipant: Participant) => {
+  if (participants.length >= maxParticipants) {
+    alert('Numero massimo di partecipanti raggiunto.');
+    return;
+  }
+  onParticipantAdded(newParticipant);
+};

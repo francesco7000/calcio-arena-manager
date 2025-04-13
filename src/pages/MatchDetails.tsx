@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MapPin, Users, Calendar, Clock, Euro, ArrowLeft, User, MapPinned, Bell, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,46 +27,86 @@ const MatchDetails = () => {
   const [isNotifying, setIsNotifying] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const isMobile = useIsMobile();
-  
-  const fetchMatch = async () => {
-    if (!id) return;
-    
-    setLoading(true);
-    try {
-      const { data: matchData, error: matchError } = await supabase
-        .from('matches')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (matchError) throw matchError;
-      if (!matchData) throw new Error('Match not found');
-      
-      const { data: participants, error: participantsError } = await supabase
-        .from('participants')
-        .select('*')
-        .eq('match_id', id);
-      
-      if (participantsError) throw participantsError;
-      
-      const fullMatch: Match = {
-        ...matchData,
-        totalParticipants: matchData.max_participants,
-        currentParticipants: participants?.length || 0,
-        participants: participants || [],
-      };
-      
-      setMatch(fullMatch);
-    } catch (error) {
-      console.error('Error fetching match details:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [playerPositions, setPlayerPositions] = useState<{ [key: string]: { x: number, y: number } }>({});
 
-  useEffect(() => {
-    fetchMatch();
-  }, [id]);
+  
+
+    // Fetch match data and formations
+    const fetchMatch = useCallback(async () => {
+      setPlayerPositions({});
+      if (!id) return;
+  
+      setLoading(true);
+      try {
+        // Fetch match details
+        const { data: matchData, error: matchError } = await supabase
+          .from('matches')
+          .select('*')
+          .eq('id', id)
+          .single();
+  
+        if (matchError) throw matchError;
+        if (!matchData) throw new Error('Match not found');
+  
+        // Fetch participants
+        const { data: participants, error: participantsError } = await supabase
+          .from('participants')
+          .select('*')
+          .eq('match_id', id);
+  
+        if (participantsError) throw participantsError;
+  
+        const fullMatch: Match = {
+          ...matchData,
+          totalParticipants: matchData.max_participants,
+          currentParticipants: participants?.length || 0,
+          participants: participants || [],
+        };
+  
+        // Fetch saved formation
+        const { data: formationData, error: formationError } = await supabase
+          .from('formations')
+          .select('positions')
+          .eq('match_id', id)
+          .maybeSingle();
+  
+        // Handle formation data
+        if (formationData && formationData.positions) {
+          try {
+            const positions = typeof formationData.positions === 'string' 
+              ? JSON.parse(formationData.positions) 
+              : formationData.positions;
+              
+              console.log('Posizioni recuperate:', positions);
+            setPlayerPositions(positions);
+            
+          } catch (parseError) {
+            console.error('Error parsing formation positions:', parseError);
+            setPlayerPositions({});
+          }
+        } else {
+          setPlayerPositions({});
+        }
+  
+        setMatch(fullMatch);
+      } catch (error) {
+        console.error('Error fetching match details:', error);
+        toast({
+          title: "Errore",
+          description: "Si è verificato un errore durante il caricamento dei dettagli della partita.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    }, [id, toast]);
+  
+    useEffect(() => {
+      console.log(id);
+      if (id) {
+        fetchMatch();
+      }
+    }, [fetchMatch]);
 
   const isUserParticipating = () => {
     if (!isAuthenticated || !user || !match) return false;
@@ -519,34 +559,37 @@ const MatchDetails = () => {
             
             {/* Separate card for participants list */}
             <ParticipantsList 
+              maxParticipants={match.totalParticipants}
               matchId={match.id}
               participants={match.participants}
               onParticipantAdded={handleParticipantAdded}
               onParticipantRemoved={handleParticipantRemoved}
             />
             
-            <Card className="overflow-hidden border-none shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-medium text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    Schieramento Giocatori
-                  </h3>
-                  {isAdmin && isUserParticipating() && (
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2"
-                      onClick={() => navigate(`/formation/${match.id}`)}
-                    >
-                      <span className="font-medium">Formazione</span>
-                    </Button>
-                  )}
-                </div>
+           
+
+         <div className="bg-white p-2 sm:p-4 rounded-xl shadow-md mb-2">  
+         <h3 className="font-medium text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    Formazione
+          </h3>        
+          {isAdmin && isUserParticipating() && (
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/formation/${match.id}`)}
+          >
+            <span className="font-medium">Modifica</span>
+          </Button>
+        )}
+          <div className="football-field-container rounded-xl overflow-hidden shadow border border-gray-200">
+            <FootballField
+              participants={match.participants}
+              initialPositions={playerPositions}
+              editable={false}
+            />
+          </div>
+        </div>
+
                 
-                <div className={isMobile ? "px-1 pt-2" : "p-2 rounded-lg"}>
-                  <FootballField participants={match.participants} />
-                </div>
-              </CardContent>
-            </Card>
           </motion.div>
         </div>
       </main>

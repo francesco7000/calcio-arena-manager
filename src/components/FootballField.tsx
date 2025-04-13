@@ -33,79 +33,24 @@ const FootballField: React.FC<FootballFieldProps> = ({
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
   }, []);
-  
-  // Inizializza le posizioni quando cambiano initialPositions o le dimensioni del campo
-  useEffect(() => {
-    if (fieldSize.width === 0 || fieldSize.height === 0) return;
-    
-    // Se abbiamo posizioni iniziali e sono valide, le usiamo
-    if (initialPositions && Object.keys(initialPositions).length > 0) {
-      // Verifica che le posizioni rientrino nei limiti del campo
-      const validPositions: {[key: string]: {x: number, y: number}} = {};
-      
-      Object.entries(initialPositions).forEach(([id, pos]) => {
-        // Assicurati che le coordinate siano all'interno del campo
-        const validX = Math.max(0, Math.min(fieldSize.width, pos.x));
-        const validY = Math.max(0, Math.min(fieldSize.height, pos.y));
-        validPositions[id] = { x: validX, y: validY };
-      });
-      
-      setPositions(validPositions);
-      return;
-    }
-    
-    // Altrimenti, creiamo posizioni predefinite
-    const defaultPositions: {[key: string]: {x: number, y: number}} = {};
-    
-    // Organizziamo i giocatori per posizione e squadra
-    const teamA = participants.filter(p => !p.team || p.team === 'A');
-    const teamB = participants.filter(p => p.team === 'B');
-    
-    // Funzione per distribuire i giocatori orizzontalmente
-    const distributeHorizontally = (players: Participant[], yPosition: number) => {
-      const count = players.length;
-      if (count === 0) return;
-      
-      const width = fieldSize.width;
-      const spacing = width * 0.8 / Math.max(count, 1);
-      const startX = width * 0.1;
-      
-      players.forEach((player, index) => {
-        defaultPositions[player.id] = {
-          x: startX + spacing * (index + 0.5),
-          y: yPosition
-        };
-      });
-    };
-    
-    // Posiziona i giocatori della squadra A
-    const aGoalkeepers = teamA.filter(p => p.position === 'GK');
-    const aDefenders = teamA.filter(p => p.position === 'DEF');
-    const aMidfielders = teamA.filter(p => p.position === 'MID');
-    const aForwards = teamA.filter(p => p.position === 'FWD');
-    
-    distributeHorizontally(aGoalkeepers, fieldSize.height * 0.1);
-    distributeHorizontally(aDefenders, fieldSize.height * 0.25);
-    distributeHorizontally(aMidfielders, fieldSize.height * 0.4);
-    distributeHorizontally(aForwards, fieldSize.height * 0.55);
-    
-    // Posiziona i giocatori della squadra B
-    const bGoalkeepers = teamB.filter(p => p.position === 'GK');
-    const bDefenders = teamB.filter(p => p.position === 'DEF');
-    const bMidfielders = teamB.filter(p => p.position === 'MID');
-    const bForwards = teamB.filter(p => p.position === 'FWD');
-    
-    distributeHorizontally(bGoalkeepers, fieldSize.height * 0.9);
-    distributeHorizontally(bDefenders, fieldSize.height * 0.75);
-    distributeHorizontally(bMidfielders, fieldSize.height * 0.6);
-    distributeHorizontally(bForwards, fieldSize.height * 0.45);
-    
-    setPositions(defaultPositions);
-  }, [fieldSize, initialPositions, participants]);
-  
 
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!initializedRef.current && initialPositions) {
+      setPositions(initialPositions);
+      initializedRef.current = true; // evita future inizializzazioni
+    }
+  }, [initialPositions]);
+  
 
   const handleDrag = (playerId: string, event: MouseEvent | TouchEvent, info: any) => {
+
+    /*
+    const offsetX = event.offset.x;
+    const offsetY = event.offset.y;
+    setDragOffset({ x: offsetX, y: offsetY });
+    */
+    
     if (!editable || !info) return;  // Aggiungiamo un controllo per `info`
   
     // Se info esiste, aggiorniamo la posizione
@@ -125,31 +70,38 @@ const FootballField: React.FC<FootballFieldProps> = ({
     });
   };
   
+
   const handleDragEnd = (playerId: string, info: any) => {
-    console.log(info);
-    // Se il campo non è editabile o non c'è una funzione per notificare il cambiamento, esci
     if (!editable || !onPositionChange) return;
   
-    // Calcola la posizione finale in base alle informazioni di trascinamento
     const fieldRect = fieldRef.current?.getBoundingClientRect();
-    console.log(fieldRect)
-    const x = info.point.x - (fieldRect?.left || 0); // Calcoliamo la posizione X relativa al campo
-    const y = info.point.y - (fieldRect?.top || 0);  // Calcoliamo la posizione Y relativa al campo
+    const ball = document.getElementById(`player-${playerId}`);
+    const ballRect = ball?.getBoundingClientRect();
   
-    // Normalizza le coordinate in base alla larghezza e altezza del campo
-    const normalizedX = x - 20;
-    const normalizedY = y - 20;
+    if (!fieldRect || !ballRect) return;
   
-    // Notifica al componente genitore con le nuove coordinate
-    onPositionChange(playerId, normalizedX, normalizedY);
+    // Calcolo corretto della posizione centrata
+    const x = ballRect.left - fieldRect.left;
+    const y = ballRect.top - fieldRect.top
+  
+    validatePositionAndSend(playerId, x, y);
   };
+  
+
+
+  const validatePositionAndSend = (playerId: string, x: number, y: number) => {
+        const validX = Math.max(0, Math.min(fieldSize.width, x));
+        const validY = Math.max(0, Math.min(fieldSize.height, y));
+        console.log(`Valid position for player ${playerId}: x=${validX}, y=${validY}`);
+        onPositionChange(playerId, validX, validY);
+  }
   
   
   return (
-    <div 
-      ref={fieldRef}
-      className="relative w-full h-[500px] sm:h-[600px] bg-gradient-to-b from-calcio-green to-calcio-darkGreen rounded-lg overflow-hidden border-2 border-white shadow-xl"
-    >
+<div 
+  ref={fieldRef}
+  className="relative w-full h-[78vh] bg-gradient-to-b from-calcio-green to-calcio-darkGreen rounded-lg overflow-hidden border-2 border-white shadow-xl"
+>
       {/* Area di vincolo per il trascinamento */}
       <div ref={dragConstraintsRef} className="absolute inset-0" />
       
@@ -262,7 +214,6 @@ const Player: React.FC<PlayerProps> = ({
     <motion.div
       id={id}
       className="absolute flex flex-col items-center pointer-events-auto z-10"
-      style={{ transform: "translate(-50%, -50%)" }}
       animate={{ x: position.x, y: position.y }}
       drag={editable}
       dragMomentum={false}
