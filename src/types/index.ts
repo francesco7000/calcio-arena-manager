@@ -3,6 +3,8 @@ import { Match as SupabaseMatch, Participant as SupabaseParticipant } from './da
 
 export interface Match extends SupabaseMatch {
   participants: Participant[];
+  totalParticipants: number;
+  currentParticipants: number;
   teamA?: string;
   teamB?: string;
 }

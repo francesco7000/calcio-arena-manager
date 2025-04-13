@@ -24,6 +24,7 @@ const MatchDetails = () => {
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const isMobile = useIsMobile();
   // Function to fetch match data - extracted from useEffect for reusability
   const fetchMatch = async () => {
@@ -166,7 +167,6 @@ const MatchDetails = () => {
   };
 
   // Funzione per gestire la disiscrizione dalla partita
-  const [isCancelling, setIsCancelling] = useState(false);
   
   const handleCancelParticipation = async () => {
     if (!match || !isAuthenticated || !user) return;
@@ -537,6 +537,23 @@ const MatchDetails = () => {
                     </Button>
                   )}
                 </div>
+                
+                {/* Lista dei partecipanti */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Partecipanti:</h4>
+                  {match.participants.length > 0 ? (
+                    <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                      {match.participants.map((participant) => (
+                        <li key={participant.id} className="bg-gray-50 px-3 py-2 rounded-md text-sm">
+                          {participant.name}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-gray-500">Nessun partecipante ancora iscritto.</p>
+                  )}
+                </div>
+                
                 <div className={isMobile ? "px-1 pt-2" : "p-2 rounded-lg"}>
                   <FootballField participants={match.participants} />
                 </div>
