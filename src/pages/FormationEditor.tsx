@@ -14,7 +14,7 @@ const FormationEditor = () => {
   const { id: matchId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const editable = true; // TODO: Implement editable option
+  const editable = true;
   const { user } = useAuth();
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,13 +58,41 @@ const FormationEditor = () => {
         .from('formations')
         .select('positions')
         .eq('match_id', matchId)
-        .single();
+        .maybeSingle();
+
+      // Imposta match prima di processare la formazione
+      setMatch(fullMatch);
 
       // Handle formation data
       if (formationData && formationData.positions) {
         try {
-          const positions = JSON.parse(formationData.positions as string);
-          setPlayerPositions(positions);
+          let positions;
+          
+          // Gestisce sia oggetti JSON che stringhe JSON
+          if (typeof formationData.positions === 'string') {
+            positions = JSON.parse(formationData.positions);
+          } else if (typeof formationData.positions === 'object') {
+            positions = formationData.positions;
+          }
+          
+          // Verifica che le posizioni siano valide
+          const validPositions: {[key: string]: {x: number, y: number}} = {};
+          
+          // Verifica che ogni ID sia associato a un partecipante esistente
+          Object.entries(positions).forEach(([id, pos]) => {
+            if (fullMatch.participants.some(p => p.id === id) && 
+                typeof pos === 'object' && 
+                'x' in pos && 
+                'y' in pos) {
+              validPositions[id] = {
+                x: Number(pos.x),
+                y: Number(pos.y)
+              };
+            }
+          });
+          
+          console.log("Posizioni caricate:", validPositions);
+          setPlayerPositions(validPositions);
         } catch (parseError) {
           console.error('Error parsing formation positions:', parseError);
           setPlayerPositions({});
@@ -73,7 +101,6 @@ const FormationEditor = () => {
         setPlayerPositions({});
       }
 
-      setMatch(fullMatch);
       setHasChanges(false);
     } catch (error) {
       console.error('Error fetching match details:', error);
@@ -93,13 +120,17 @@ const FormationEditor = () => {
 
   // Handle position changes
   const handlePositionChange = (participantId: string, x: number, y: number) => {
+    // Verifica che l'ID appartenga a un partecipante valido
+    if (!match?.participants.some(p => p.id === participantId)) return;
+    
+    console.log(`Posizione aggiornata per ${participantId}: x=${x}, y=${y}`);
+    
     setPlayerPositions(prev => {
       const newPositions = {
         ...prev,
         [participantId]: { x, y }
       };
       
-      // Sempre marca le modifiche quando cambia una posizione
       setHasChanges(true);
       return newPositions;
     });
@@ -112,9 +143,25 @@ const FormationEditor = () => {
     setSaving(true);
 
     try {
-      const stringifiedPositions = JSON.stringify(playerPositions);
+      console.log("Salvataggio posizioni:", playerPositions);
+      
+      // Verifica il formato delle posizioni prima del salvataggio
+      const formattedPositions: {[key: string]: {x: number, y: number}} = {};
+      
+      Object.entries(playerPositions).forEach(([id, pos]) => {
+        // Verifica che l'ID appartenga a un partecipante valido
+        if (match?.participants.some(p => p.id === id)) {
+          formattedPositions[id] = {
+            x: Number(pos.x),
+            y: Number(pos.y)
+          };
+        }
+      });
+      
+      const stringifiedPositions = JSON.stringify(formattedPositions);
+      console.log("Posizioni serializzate:", stringifiedPositions);
 
-      // Check if formation exists
+      // Verifica se esiste già una formazione
       const { data: existingFormation, error: fetchError } = await supabase
         .from('formations')
         .select('id')
@@ -127,8 +174,9 @@ const FormationEditor = () => {
 
       let result;
       
-      // Update or insert based on existence
+      // Aggiorna o inserisci in base all'esistenza
       if (existingFormation) {
+        console.log("Aggiornamento formazione esistente:", existingFormation.id);
         result = await supabase
           .from('formations')
           .update({ 
@@ -137,6 +185,7 @@ const FormationEditor = () => {
           })
           .eq('id', existingFormation.id);
       } else {
+        console.log("Creazione nuova formazione");
         result = await supabase
           .from('formations')
           .insert({
@@ -147,8 +196,13 @@ const FormationEditor = () => {
           });
       }
 
-      if (result.error) throw result.error;
+      if (result.error) {
+        console.error("Errore in Supabase:", result.error);
+        throw result.error;
+      }
 
+      console.log("Formazione salvata con successo");
+      
       toast({
         title: "Formazione salvata",
         description: "La formazione è stata salvata con successo",
