@@ -72,10 +72,13 @@ const ParticipantsList = ({
     setIsAddingGuest(true);
     
     try {
-      // Create a guest participant (notice the user_id is 'guest' to distinguish from registered users)
+      // Generate a unique guest ID using a timestamp and random string
+      const uniqueGuestId = `guest-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      
+      // Create a guest participant with the unique guest ID
       const newGuest = {
         match_id: matchId,
-        user_id: 'guest',
+        user_id: uniqueGuestId, // Use unique ID instead of just "guest"
         name: guestName,
         position: guestPosition,
       };
