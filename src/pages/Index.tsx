@@ -1,321 +1,311 @@
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import Header from "@/components/Header";
-import MatchCard from "@/components/MatchCard";
-import { Match, ViewMode } from "@/types";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { List, LayoutList, Filter, CheckCircle2, CircleDashed, Calendar, UserCheck } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { CalendarIcon, ArrowDownToLine, ArrowUpToLine } from "lucide-react";
+import { format } from "date-fns";
+import { enUS, it } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-type FilterOption = 'all' | 'available' | 'full';
-type ViewTab = 'weekly' | 'participating';
+import { supabase } from "@/integrations/supabase/client";
+import MatchCard from "@/components/MatchCard";
+import Header from "@/components/Header";
+import { Match, ViewMode } from "@/types";
+import { DateRange } from "react-day-picker";
+import { useIsMobile } from "@/hooks/use-mobile";
+
 const Index = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated, isAdmin } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<string>("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [date, setDate] = useState<DateRange | undefined>({
+    from: undefined,
+    to: undefined,
+  });
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [filterOption, setFilterOption] = useState<FilterOption>("all");
-  const [viewTab, setViewTab] = useState<ViewTab>("weekly");
-  const { user, isAuthenticated } = useAuth();
-  const [myMatches, setMyMatches] = useState<Match[]>([]);
+  const isMobile = useIsMobile();
+
   useEffect(() => {
-    const fetchMatches = async () => {
-      setLoading(true);
-      try {
-        // Fetch real data from Supabase
-        const { data, error } = await supabase
-          .from('matches')
-          .select('*');
-        
-        if (error) throw error;
-        
-        // Transform data to match our frontend model if needed
-        const transformedMatches = data.map(match => ({
-          ...match,
-          totalParticipants: match.max_participants,
-          currentParticipants: match.current_participants || 0,
-          participants: []
-        }));
-        
-        // For each match, fetch its participants
-        for (const match of transformedMatches) {
+    fetchMatches();
+  }, []);
+
+  const fetchMatches = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('matches')
+        .select('*');
+
+      if (error) {
+        console.error("Error fetching matches:", error);
+        return;
+      }
+
+      // Fetch participants for each match
+      const matchesWithParticipants = await Promise.all(
+        data.map(async (matchData) => {
           const { data: participants, error: participantsError } = await supabase
             .from('participants')
             .select('*')
-            .eq('match_id', match.id);
-          
-          if (!participantsError && participants) {
-            match.participants = participants;
+            .eq('match_id', matchData.id);
+
+          if (participantsError) {
+            console.error(`Error fetching participants for match ${matchData.id}:`, participantsError);
+            return { ...matchData, participants: [] }; // Return match with empty participants array in case of error
           }
-        }
-        
-        setMatches(transformedMatches);
-        
-        // Se l'utente è autenticato, recupera le partite a cui è iscritto
-        if (isAuthenticated && user) {
-          const userMatches = transformedMatches.filter(match => 
-            match.participants.some(p => p.user_id === user.id)
-          );
-          setMyMatches(userMatches);
-        }
-      } catch (error) {
-        console.error('Error fetching matches:', error);
-        setMatches([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchMatches();
-  }, [isAuthenticated, user]);
-  const handleFilterChange = (option: FilterOption) => {
-    setFilterOption(option);
+
+          const fullMatch: Match = {
+            ...matchData,
+            totalParticipants: matchData.max_participants,
+            currentParticipants: matchData.current_participants,
+            participants: participants || [],
+          };
+
+          return fullMatch;
+        })
+      );
+
+      setMatches(matchesWithParticipants as Match[]);
+    } catch (error) {
+      console.error("Unexpected error fetching matches:", error);
+    } finally {
+      setLoading(false);
+    }
   };
-  // Filtra le partite in base all'opzione selezionata e rimuovi quelle a cui l'utente è già iscritto dalla tab "weekly"
-  const filteredMatches = matches.filter(match => {
-    // Se l'utente è autenticato, verifica se è già iscritto a questa partita
-    const isUserParticipating = isAuthenticated && user && 
-      match.participants.some(p => p.user_id === user.id);
-    
-    // Nella tab settimanale, escludiamo le partite a cui l'utente è già iscritto
-    if (viewTab === "weekly" && isUserParticipating) {
-      return false;
+
+  const handleCreateMatch = () => {
+    navigate("/create-match");
+  };
+
+  const sortedMatches = [...matches].sort((a, b) => {
+    const aValue = typeof a[sortBy as keyof Match] === 'string' ? (a[sortBy as keyof Match] as string).toLowerCase() : a[sortBy as keyof Match];
+    const bValue = typeof b[sortBy as keyof Match] === 'string' ? (b[sortBy as keyof Match] as string).toLowerCase() : b[sortBy as keyof Match];
+
+    if (aValue < bValue) {
+      return sortOrder === "asc" ? -1 : 1;
     }
-    
-    // Applica i filtri standard
-    if (filterOption === 'available') {
-      return match.currentParticipants < match.totalParticipants;
-    } else if (filterOption === 'full') {
-      return match.currentParticipants >= match.totalParticipants;
+    if (aValue > bValue) {
+      return sortOrder === "asc" ? 1 : -1;
     }
-    
-    return true;
+    return 0;
   });
 
-  // Usa le partite a cui l'utente è effettivamente iscritto
-  const currentMatches = viewTab === "weekly" ? filteredMatches : myMatches;
-  const renderMatches = () => {
-    if (loading) {
-      return <div className="space-y-4 mt-6">
-          {[1, 2, 3].map(i => <motion.div key={i} className="h-64 bg-gray-200 rounded-md" initial={{
-          opacity: 0.6
-        }} animate={{
-          opacity: [0.6, 0.8, 0.6]
-        }} transition={{
-          duration: 1.5,
-          repeat: Infinity
-        }} />)}
-        </div>;
-    }
-    if (currentMatches.length === 0) {
-      return <motion.div className="text-center py-12" initial={{
-        opacity: 0,
-        y: 20
-      }} animate={{
-        opacity: 1,
-        y: 0
-      }} transition={{
-        delay: 0.2
-      }}>
-          <p className="text-lg text-gray-500">
-            {viewTab === "weekly" ? "Non ci sono partite che corrispondono ai criteri selezionati." : "Non stai partecipando a nessuna partita al momento."}
-          </p>
-        </motion.div>;
-    }
-    return <AnimatePresence mode="wait">
-        {viewMode === "list" && <motion.div key="list-view" className="space-y-4 mt-6" initial={{
-        opacity: 0
-      }} animate={{
-        opacity: 1
-      }} exit={{
-        opacity: 0
-      }}>
-            {currentMatches.map((match, index) => <motion.div key={match.id} initial={{
-          opacity: 0,
-          y: 20
-        }} animate={{
-          opacity: 1,
-          y: 0
-        }} transition={{
-          delay: index * 0.1
-        }}>
-                <MatchCard match={match} />
-              </motion.div>)}
-          </motion.div>}
+  const filteredMatches = sortedMatches.filter(match => {
+    const matchDate = new Date(match.date);
+    const isWithinRange = (!date?.from || matchDate >= date.from) && (!date?.to || matchDate <= date.to);
+    const matchesSearchQuery =
+      match.field.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      match.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      match.address.toLowerCase().includes(searchQuery.toLowerCase());
 
-        {viewMode === "compact" && <motion.div key="compact-view" className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6" initial={{
-        opacity: 0
-      }} animate={{
-        opacity: 1
-      }} exit={{
-        opacity: 0
-      }}>
-            {currentMatches.map((match, index) => <motion.div key={match.id} initial={{
-          opacity: 0,
-          y: 20
-        }} animate={{
-          opacity: 1,
-          y: 0
-        }} transition={{
-          delay: index * 0.05
-        }}>
-                <MatchCard match={match} isCompact={true} />
-              </motion.div>)}
-          </motion.div>}
-      </AnimatePresence>;
-  };
-  return <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
-      <Header />
+    return isWithinRange && matchesSearchQuery;
+  });
+
+  const availableMatches = filteredMatches.filter(match => {
+    const currentParticipants = match.currentParticipants !== undefined 
+      ? match.currentParticipants 
+      : match.current_participants || 0;
       
-      <main className="flex-1 container py-6">
-        <motion.div className="space-y-6" initial={{
-        opacity: 0,
-        y: 20
-      }} animate={{
-        opacity: 1,
-        y: 0
-      }} transition={{
-        duration: 0.5
-      }}>
-          {/* Title and description in their own section */}
-          <div>
-            <motion.h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent" initial={{
-            opacity: 0,
-            x: -20
-          }} animate={{
-            opacity: 1,
-            x: 0
-          }} transition={{
-            delay: 0.2
-          }}>
-              Partite della settimana
-            </motion.h2>
-            
-            <motion.p className="text-muted-foreground" initial={{
-            opacity: 0,
-            x: -20
-          }} animate={{
-            opacity: 1,
-            x: 0
-          }} transition={{
-            delay: 0.3
-          }}>
-              Trova e partecipa alle partite nella tua zona.
-            </motion.p>
-          </div>
-          
-          {/* Tabs to switch between weekly matches and participating matches */}
-          <Tabs value={viewTab} onValueChange={value => setViewTab(value as ViewTab)} className="w-full">
-            <TabsList className="grid grid-cols-2 w-full mb-4">
-              <TabsTrigger value="weekly" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <span>Partite settimanali</span>
-              </TabsTrigger>
-              <TabsTrigger value="participating" className="flex items-center gap-2" disabled={!isAuthenticated}>
-                <UserCheck className="h-4 w-4" />
-                <span>{isAuthenticated ? "Le mie partite" : "Accedi"}</span>
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="weekly">
-              {/* Controls for weekly matches view */}
-              <div className="flex items-center gap-2 justify-end">
-                <motion.div className="flex bg-white p-1 rounded-lg shadow-sm border space-x-1" initial={{
-                opacity: 0,
-                x: 20
-              }} animate={{
-                opacity: 1,
-                x: 0
-              }} transition={{
-                delay: 0.4
-              }}>
-                  <Button variant={viewMode === "list" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("list")} className="rounded-md">
-                    <List className="h-4 w-4 mr-1" />
-                    <span className="text-xs">Lista</span>
-                  </Button>
-                  <Button variant={viewMode === "compact" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("compact")} className="rounded-md">
-                    <LayoutList className="h-4 w-4 mr-1" />
-                    <span className="text-xs">Compatta</span>
-                  </Button>
-                </motion.div>
-                
-                <motion.div initial={{
-                opacity: 0,
-                x: 20
-              }} animate={{
-                opacity: 1,
-                x: 0
-              }} transition={{
-                delay: 0.5
-              }}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="ml-2">
-                        <Filter className="h-4 w-4 mr-1" />
-                        <span className="text-xs">Filtri</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end">
-                      <DropdownMenuLabel>Filtra partite</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem onClick={() => handleFilterChange('all')} className="cursor-pointer">
-                          <div className="flex items-center w-full">
-                            {filterOption === 'all' && <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />}
-                            {filterOption !== 'all' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
-                            <span>Tutte le partite</span>
-                          </div>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleFilterChange('available')} className="cursor-pointer">
-                          <div className="flex items-center w-full">
-                            {filterOption === 'available' && <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />}
-                            {filterOption !== 'available' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
-                            <span>Partite con posti</span>
-                          </div>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleFilterChange('full')} className="cursor-pointer">
-                          <div className="flex items-center w-full">
-                            {filterOption === 'full' && <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />}
-                            {filterOption !== 'full' && <CircleDashed className="h-4 w-4 mr-2 text-muted-foreground" />}
-                            <span>Partite al completo</span>
-                          </div>
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </motion.div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="participating">
-              {/* View controls for participating matches */}
-              <div className="flex items-center gap-2 justify-end">
-                <motion.div className="flex bg-white p-1 rounded-lg shadow-sm border space-x-1" initial={{
-                opacity: 0,
-                x: 20
-              }} animate={{
-                opacity: 1,
-                x: 0
-              }} transition={{
-                delay: 0.4
-              }}>
-                  <Button variant={viewMode === "list" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("list")} className="rounded-md">
-                    <List className="h-4 w-4 mr-1" />
-                    <span className="text-xs">Lista</span>
-                  </Button>
-                  <Button variant={viewMode === "compact" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("compact")} className="rounded-md">
-                    <LayoutList className="h-4 w-4 mr-1" />
-                    <span className="text-xs">Compatta</span>
-                  </Button>
-                </motion.div>
-              </div>
-            </TabsContent>
-          </Tabs>
+    const totalParticipants = match.totalParticipants !== undefined 
+      ? match.totalParticipants 
+      : match.max_participants || 0;
+      
+    return currentParticipants < totalParticipants;
+  });
 
-          {renderMatches()}
+  const fullMatches = filteredMatches.filter(match => {
+    const currentParticipants = match.currentParticipants !== undefined 
+      ? match.currentParticipants 
+      : match.current_participants || 0;
+      
+    const totalParticipants = match.totalParticipants !== undefined 
+      ? match.totalParticipants 
+      : match.max_participants || 0;
+      
+    return currentParticipants >= totalParticipants;
+  });
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
+      <Header />
+
+      <main className="flex-1 container py-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mb-4 flex flex-col md:flex-row items-center justify-between gap-3"
+        >
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            <Input
+              type="text"
+              placeholder="Cerca per campo, luogo o indirizzo..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-md"
+            />
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date?.from ? (
+                    date.to ? (
+                      `${format(date.from, "dd/MM/yyyy", { locale: it })} - ${format(date.to, "dd/MM/yyyy", { locale: it })}`
+                    ) : (
+                      format(date.from, "dd/MM/yyyy", { locale: it })
+                    )
+                  ) : (
+                    <span>Seleziona una data</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center" side="bottom">
+                <Calendar
+                  mode="range"
+                  defaultMonth={date?.from}
+                  selected={date}
+                  onSelect={setDate}
+                  locale={it}
+                  fromYear={2024}
+                  toYear={2025}
+                  className="border-0 rounded-md overflow-hidden"
+                  classNames={{
+                    head_cell: "text-muted-foreground",
+                    day: "rounded-md",
+                    day_selected:
+                      "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                    day_today: "bg-accent text-accent-foreground",
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Ordina per..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date">Data</SelectItem>
+                <SelectItem value="time">Ora</SelectItem>
+                <SelectItem value="location">Luogo</SelectItem>
+                <SelectItem value="price">Prezzo</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            >
+              {sortOrder === "asc" ? (
+                <>
+                  <ArrowDownToLine className="mr-2 h-4 w-4" />
+                  Ascendente
+                </>
+              ) : (
+                <>
+                  <ArrowUpToLine className="mr-2 h-4 w-4" />
+                  Discendente
+                </>
+              )}
+            </Button>
+          </div>
         </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+          className="mb-4 flex items-center justify-between"
+        >
+          <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Partite Disponibili
+          </h2>
+          {isAuthenticated && isAdmin && (
+            <Button onClick={handleCreateMatch}>Crea Partita</Button>
+          )}
+        </motion.div>
+
+        {loading ? (
+          <div className="flex justify-center items-center">
+            <motion.div
+              className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, ease: "linear", repeat: Infinity }}
+            />
+          </div>
+        ) : (
+          <>
+            {availableMatches.length > 0 ? (
+              <motion.div
+                layout
+                className={`grid ${viewMode === 'list' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'} gap-4`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delayChildren: 0.2, staggerChildren: 0.1 }}
+              >
+                {availableMatches.map((match) => (
+                  <MatchCard key={match.id} match={match} isCompact={viewMode === 'compact'} />
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="text-center py-12"
+              >
+                <p className="text-lg text-gray-500">Nessuna partita disponibile al momento.</p>
+              </motion.div>
+            )}
+
+            {fullMatches.length > 0 && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                  className="mt-8 mb-4 flex items-center justify-between"
+                >
+                  <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    Partite Complete
+                  </h2>
+                </motion.div>
+
+                <motion.div
+                  layout
+                  className={`grid ${viewMode === 'list' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'} gap-4`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delayChildren: 0.2, staggerChildren: 0.1 }}
+                >
+                  {fullMatches.map((match) => (
+                    <MatchCard key={match.id} match={match} isCompact={viewMode === 'compact'} />
+                  ))}
+                </motion.div>
+              </>
+            )}
+          </>
+        )}
       </main>
-    </div>;
+    </div>
+  );
 };
+
 export default Index;

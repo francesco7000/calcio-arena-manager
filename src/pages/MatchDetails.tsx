@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MapPin, Users, Calendar, Clock, Euro, ArrowLeft, User, MapPinned, Bell, AlertTriangle } from "lucide-react";
@@ -14,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const MatchDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,13 +25,12 @@ const MatchDetails = () => {
   const [isJoining, setIsJoining] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
   const isMobile = useIsMobile();
-  // Function to fetch match data - extracted from useEffect for reusability
+  
   const fetchMatch = async () => {
     if (!id) return;
     
     setLoading(true);
     try {
-      // Fetch match data from Supabase
       const { data: matchData, error: matchError } = await supabase
         .from('matches')
         .select('*')
@@ -41,7 +40,6 @@ const MatchDetails = () => {
       if (matchError) throw matchError;
       if (!matchData) throw new Error('Match not found');
       
-      // Fetch participants for this match
       const { data: participants, error: participantsError } = await supabase
         .from('participants')
         .select('*')
@@ -49,11 +47,10 @@ const MatchDetails = () => {
       
       if (participantsError) throw participantsError;
       
-      // Transform data to match our frontend model
       const fullMatch: Match = {
         ...matchData,
+        currentParticipants: matchData.current_participants,
         totalParticipants: matchData.max_participants,
-        currentParticipants: participants?.length || 0,
         participants: participants || [],
       };
       
@@ -66,18 +63,15 @@ const MatchDetails = () => {
     }
   };
 
-  // Load match data on component mount
   useEffect(() => {
     fetchMatch();
   }, [id]);
 
-  // Verifica se l'utente è già iscritto alla partita
   const isUserParticipating = () => {
     if (!isAuthenticated || !user || !match) return false;
     return match.participants.some(p => p.user_id === user.id);
   };
 
-  // Ottieni l'ID del partecipante dell'utente corrente
   const getUserParticipantId = () => {
     if (!isAuthenticated || !user || !match) return null;
     const participant = match.participants.find(p => p.user_id === user.id);
@@ -87,7 +81,6 @@ const MatchDetails = () => {
   const handleJoin = async () => {
     if (!match || match.currentParticipants >= match.totalParticipants) return;
     
-    // Verifica se l'utente è autenticato
     if (!isAuthenticated || !user) {
       toast({
         title: "Accesso richiesto",
@@ -100,7 +93,6 @@ const MatchDetails = () => {
     
     setIsJoining(true);
     try {
-      // Check if user is already participating
       const userId = user.id;
       const { data: existingParticipant, error: checkError } = await supabase
         .from('participants')
@@ -121,12 +113,11 @@ const MatchDetails = () => {
         return;
       }
       
-      // Add participant to Supabase
       const newParticipant = {
         match_id: match.id,
         user_id: userId,
         name: user.username || 'Utente',
-        position: 'MID' as const, // Default position, could be selected by user
+        position: 'MID' as const,
       };
       
       const { data, error } = await supabase
@@ -137,7 +128,6 @@ const MatchDetails = () => {
       
       if (error) throw error;
       
-      // Update local state
       if (match && data) {
         setMatch({
           ...match,
@@ -151,7 +141,6 @@ const MatchDetails = () => {
         description: "Ti sei iscritto alla partita con successo.",
       });
       
-      // Refresh match data to ensure we have the latest state
       fetchMatch();
     } catch (error) {
       console.error('Error joining match:', error);
@@ -165,9 +154,6 @@ const MatchDetails = () => {
     }
   };
 
-  // Funzione per gestire la disiscrizione dalla partita
-  const [isCancelling, setIsCancelling] = useState(false);
-  
   const handleCancelParticipation = async () => {
     if (!match || !isAuthenticated || !user) return;
     
@@ -183,7 +169,6 @@ const MatchDetails = () => {
     
     setIsCancelling(true);
     try {
-      // Rimuovi il partecipante dal database
       const { error } = await supabase
         .from('participants')
         .delete()
@@ -191,7 +176,6 @@ const MatchDetails = () => {
       
       if (error) throw error;
       
-      // Aggiorna lo stato locale
       if (match) {
         setMatch({
           ...match,
@@ -205,7 +189,6 @@ const MatchDetails = () => {
         description: "Ti sei disiscritto dalla partita con successo.",
       });
       
-      // Aggiorna i dati della partita
       fetchMatch();
     } catch (error) {
       console.error('Error cancelling participation:', error);
@@ -222,7 +205,6 @@ const MatchDetails = () => {
   const handleNotify = async () => {
     if (!match) return;
     
-    // Verifica se l'utente è autenticato
     if (!isAuthenticated || !user) {
       toast({
         title: "Accesso richiesto",
@@ -235,19 +217,16 @@ const MatchDetails = () => {
     
     setIsNotifying(true);
     try {
-      // In a real app, you would store this notification preference in the database
-      // For now, we'll simulate it with a delay but add a more realistic implementation
       const userId = user.id;
       
-      // Check if user already requested notification
       const { data: existingNotification, error: checkError } = await supabase
-        .from('notifications') // Assuming you have a notifications table
+        .from('notifications')
         .select('*')
         .eq('match_id', match.id)
         .eq('user_id', userId)
         .maybeSingle();
       
-      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is the error code for table not found
+      if (checkError && checkError.code !== 'PGRST116') {
         throw checkError;
       }
       
@@ -257,10 +236,6 @@ const MatchDetails = () => {
           description: "Hai già richiesto di essere notificato per questa partita.",
         });
       } else {
-        // In a production app, you would create a notification record here
-        // Since we might not have a notifications table in this demo, we'll simulate success
-        
-        // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 500));
         
         toast({
@@ -518,6 +493,36 @@ const MatchDetails = () => {
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="overflow-hidden border-none shadow-lg">
+              <CardContent className="p-6">
+                <h3 className="font-medium text-lg mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  Partecipanti ({match.participants.length})
+                </h3>
+                
+                {match.participants.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {match.participants.map((participant) => (
+                      <div key={participant.id} className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
+                        <Avatar className="h-8 w-8 bg-primary/20">
+                          <AvatarFallback className="text-primary font-medium">
+                            {participant.name.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="truncate">
+                          <p className="text-sm font-medium truncate">{participant.name}</p>
+                          <p className="text-xs text-muted-foreground">{participant.position}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>Nessun partecipante ancora iscritto</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
             
