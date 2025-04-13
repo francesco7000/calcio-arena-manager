@@ -235,10 +235,6 @@ const FormationEditor = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col">
         <Header />
         <div className="flex-1 container py-6">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4 group">
-            <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-            Indietro
-          </Button>
           <motion.div
             className="text-center py-12"
             initial={{ opacity: 0, y: 20 }}
@@ -258,10 +254,6 @@ const FormationEditor = () => {
       <Header />
       <main className="flex-1 container py-6">
         <div className="flex justify-between items-center flex-wrap gap-2 mb-4">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="group">
-            <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-            Indietro
-          </Button>
 
           <div className="flex gap-2">
             <Button 

@@ -226,7 +226,7 @@ const Player: React.FC<PlayerProps> = ({
         className={`
           ${colorClasses[color as keyof typeof colorClasses]} 
           ${isGoalkeeper ? 'ring-2 ring-yellow-300' : ''}
-          ${markerSize} rounded-full flex items-center justify-center
+          ${markerSize} rounded-full flex flex-col items-center justify-center
           text-white font-bold shadow-md mb-1
           border-2 ${borderClasses[color as keyof typeof borderClasses]}
           ${editable ? 'cursor-move' : 'cursor-pointer'}
@@ -235,7 +235,8 @@ const Player: React.FC<PlayerProps> = ({
         whileHover={{ scale: 1.1 }}
         onClick={handleClick}
       >
-        {player.number}
+        <span className="text-[10px] leading-none mb-0.5">{player.position}</span>
+        <span>{player.number}</span>
 
         {showDetails && (
           <motion.div 
