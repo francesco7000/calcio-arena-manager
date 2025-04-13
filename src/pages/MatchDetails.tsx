@@ -23,6 +23,7 @@ const MatchDetails = () => {
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
   const isMobile = useIsMobile();
   
