@@ -3,12 +3,16 @@ DROP TRIGGER IF EXISTS update_title_trigger ON matches;
 DROP FUNCTION IF EXISTS update_title;
 
 DROP TRIGGER IF EXISTS update_match_participants_count_trigger ON participants;
+DROP TRIGGER IF EXISTS update_formations_updated_at_trigger ON formations;
 DROP FUNCTION IF EXISTS update_match_participants_count;
 
-DROP TABLE IF EXISTS notifications;
-DROP TABLE IF EXISTS participants;
-DROP TABLE IF EXISTS matches;
-DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS participants CASCADE;
+DROP TABLE IF EXISTS formation CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS matches CASCADE;
+
+DROP INDEX IF EXISTS formations_match_id_idx;
 
 -- Abilita le estensioni necessarie
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -61,11 +65,28 @@ CREATE TABLE IF NOT EXISTS participants (
   match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL,
   name TEXT NOT NULL,
-  position TEXT CHECK (position IN ('GK', 'DEF', 'MID', 'FWD')) NOT NULL,
+  position TEXT CHECK (
+    position IN (
+      'POR',  -- Portiere
+      'DC',   -- Difensore Centrale
+      'TS',   -- Terzino Sinistro
+      'TD',   -- Terzino Destro
+      'ES',   -- Esterno Sinistro
+      'ED',   -- Esterno Destro
+      'CDC',  -- Centrocampista Difensivo Centrale
+      'CC',   -- Centrocampista Centrale
+      'COC',  -- Centrocampista Offensivo Centrale
+      'AS',   -- Ala Sinistra
+      'AD',   -- Ala Destra
+      'SP',   -- Seconda Punta
+      'ATT'   -- Attaccante
+    )
+  ) NOT NULL,
   team TEXT CHECK (team IN ('A', 'B')),
   number INTEGER,
   UNIQUE(match_id, user_id)
 );
+
 
 -- Tabella notifications (notifiche)
 CREATE TABLE IF NOT EXISTS notifications (
@@ -96,33 +117,40 @@ AFTER INSERT OR DELETE ON participants
 FOR EACH ROW
 EXECUTE FUNCTION update_match_participants_count();
 
--- Dati di esempio
-
--- Inserimento partite di esempio
-INSERT INTO matches (date, time, location, address, field, organizer, price, max_participants, current_participants) VALUES
-('2025-04-15', '19:00', 'Centro Sportivo XYZ', 'Via del Campo 123, Milano', 'Campo Grande', 'Mario Rossi', 10.00, 10, 0),
-('2025-04-16', '20:30', 'Stadio Comunale', 'Via dello Sport 45, Milano', 'Campo Centrale', 'Luca Bianchi', 12.50, 10, 0),
-('2025-04-18', '18:45', 'Centro Sportivo Meridiana', 'Viale dei Giochi 78, Milano', 'Campo Piccolo', 'Antonio Verdi', 8.00, 12, 0),
-('2025-04-20', '19:30', 'Stadio Olimpico', 'Piazza delle Vittorie 1, Roma', 'Campo Principale', 'Giorgio Neri', 15.00, 22, 0);
-
--- Inserimento partecipanti di esempio (per la prima partita)
-INSERT INTO participants (match_id, user_id, name, position, number) VALUES
-((SELECT id FROM matches WHERE field = 'Campo Grande' LIMIT 1), 'user-1', 'Marco', 'GK', 1),
-((SELECT id FROM matches WHERE field = 'Campo Grande' LIMIT 1), 'user-2', 'Luigi', 'DEF', 2),
-((SELECT id FROM matches WHERE field = 'Campo Grande' LIMIT 1), 'user-3', 'Giovanni', 'DEF', 3),
-((SELECT id FROM matches WHERE field = 'Campo Grande' LIMIT 1), 'user-4', 'Paolo', 'MID', 4),
-((SELECT id FROM matches WHERE field = 'Campo Grande' LIMIT 1), 'user-5', 'Roberto', 'MID', 5),
-((SELECT id FROM matches WHERE field = 'Campo Grande' LIMIT 1), 'user-6', 'Alberto', 'MID', 6),
-((SELECT id FROM matches WHERE field = 'Campo Grande' LIMIT 1), 'user-7', 'Davide', 'FWD', 7),
-((SELECT id FROM matches WHERE field = 'Campo Grande' LIMIT 1), 'user-8', 'Stefano', 'FWD', 8);
-
--- Inserimento notifiche di esempio
-INSERT INTO notifications (match_id, user_id, message) VALUES
-((SELECT id FROM matches WHERE field = 'Campo Centrale' LIMIT 1), 'user-30', 'Si è liberato un posto per la partita'),
-((SELECT id FROM matches WHERE field = 'Campo Piccolo' LIMIT 1), 'user-31', 'Si è liberato un posto per la partita');
 
 -- Inserimento utenti di esempio
 INSERT INTO users (username, password, admin) VALUES
 ('admin', 'admin', TRUE),
 ('ute1', 'pass1', FALSE),
 ('ute2', 'pass2', FALSE);
+
+-- Aggiungi la tabella formations al database
+CREATE TABLE IF NOT EXISTS formations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  positions JSONB NOT NULL DEFAULT '{}',
+  UNIQUE(match_id)
+);
+
+-- Commento sulla tabella
+COMMENT ON TABLE formations IS 'Tabella per memorizzare le formazioni delle partite';
+COMMENT ON COLUMN formations.positions IS 'JSON con le posizioni dei giocatori sul campo';
+
+-- Indice per migliorare le prestazioni delle query
+CREATE INDEX formations_match_id_idx ON formations(match_id);
+
+-- Trigger per aggiornare il timestamp updated_at
+CREATE OR REPLACE FUNCTION update_formations_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_formations_updated_at_trigger
+BEFORE UPDATE ON formations
+FOR EACH ROW
+EXECUTE FUNCTION update_formations_updated_at();

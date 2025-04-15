@@ -188,7 +188,7 @@ const Player: React.FC<PlayerProps> = ({
   const [showDetails, setShowDetails] = useState(false);
 
   // Colore della squadra
-  const color = team === 'A' ? 'red' : 'blue';
+  const color = team === 'A' ? 'blue' : 'red';
 
   const colorClasses = {
     red: "bg-red-500 hover:bg-red-600",

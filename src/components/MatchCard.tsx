@@ -10,6 +10,22 @@ import { Match, Position } from "@/types";
 import { motion } from "framer-motion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface MatchCardProps {
   match: Match;
@@ -22,9 +38,11 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
   const { user, isAuthenticated } = useAuth();
   const [isJoining, setIsJoining] = useState(false);
   const [isNotifying, setIsNotifying] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<string>("A");
+  const [showTeamDialog, setShowTeamDialog] = useState(false);
   
   const isFull = match.currentParticipants >= match.totalParticipants;
-  const isGoalkeeperMissing = !match.participants.some(p => p.position === 'GK');
+  const isGoalkeeperMissing = !match.participants.some(p => p.position === 'POR');
   
   // Verifica se l'utente è già iscritto alla partita
   const isUserParticipating = () => {
@@ -54,34 +72,57 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
       return;
     }
     
+    // Verifica se l'utente è già iscritto
+    const { data: existingParticipant, error: checkError } = await supabase
+      .from('participants')
+      .select('*')
+      .eq('match_id', match.id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (checkError) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la verifica dell'iscrizione.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (existingParticipant) {
+      toast({
+        title: "Già iscritto",
+        description: "Sei già iscritto a questa partita.",
+        variant: "default"
+      });
+      return;
+    }
+    
+    // Iscrivi direttamente l'utente senza mostrare il dialog
+    joinMatch();
+    e.stopPropagation(); // Previene che il click apra i dettagli della partita
+  };
+  
+  const joinMatch = async () => {
+    if (!match || !user) return;
+    
     setIsJoining(true);
+    
     try {
-      // Verifica se l'utente è già iscritto
-      const { data: existingParticipant, error: checkError } = await supabase
-        .from('participants')
-        .select('*')
-        .eq('match_id', match.id)
-        .eq('user_id', user.id)
-        .maybeSingle();
+      // Conta i partecipanti per ogni squadra
+      const teamACounts = match.participants.filter(p => p.team === 'A').length;
+      const teamBCounts = match.participants.filter(p => p.team === 'B').length;
       
-      if (checkError) throw checkError;
-      
-      if (existingParticipant) {
-        toast({
-          title: "Già iscritto",
-          description: "Sei già iscritto a questa partita.",
-          variant: "default"
-        });
-        setIsJoining(false);
-        return;
-      }
+      // Assegna automaticamente alla squadra con meno giocatori
+      const assignedTeam = teamACounts <= teamBCounts ? 'A' : 'B';
       
       // Aggiungi partecipante a Supabase
       const newParticipant = {
         match_id: match.id,
         user_id: user.id,
         name: user.username || 'Utente',
-        position: 'MID' as const, // Posizione predefinita
+        position: 'CC' as const, // Posizione predefinita
+        team: assignedTeam, // Assegnazione automatica
       };
       
       const { error } = await supabase
@@ -92,7 +133,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
       
       toast({
         title: "Iscrizione confermata!",
-        description: "Ti sei iscritto alla partita con successo.",
+        description: `Ti sei iscritto alla partita con successo nel Team ${assignedTeam} (${assignedTeam === 'A' ? 'blu' : 'rosso'}).`,
       });
       
       // Aggiorna la pagina per mostrare i dati aggiornati
@@ -223,105 +264,106 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
   }
 
   return (
-    <Card className="overflow-hidden animate-slide-up hover:shadow-md transition-all cursor-pointer" onClick={handleViewDetails}>
-      <CardContent className="p-0">
-        <div className={`${isFull ? 'bg-red-300' : 'bg-green-200'} ${isFull ? 'text-red-800' : 'text-green-800'} p-4`}>
-          <div className="flex justify-between items-center">
-            <h3 className="font-bold truncate max-w-[70%]">{match.field}</h3>
-            <Badge variant={isFull ? "full" : "success"} className={isFull ? "bg-white text-red-500" : ""}>
-              {match.currentParticipants}/{match.totalParticipants}
-              {isFull && <span className="ml-1">Completo</span>}
-            </Badge>
+
+      <Card className="overflow-hidden animate-slide-up hover:shadow-md transition-all cursor-pointer" onClick={handleViewDetails}>
+        <CardContent className="p-0">
+          <div className={`${isFull ? 'bg-red-300' : 'bg-green-200'} ${isFull ? 'text-red-800' : 'text-green-800'} p-4`}>
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold truncate max-w-[70%]">{match.field}</h3>
+              <Badge variant={isFull ? "full" : "success"} className={isFull ? "bg-white text-red-500" : ""}>
+                {match.currentParticipants}/{match.totalParticipants}
+                {isFull && <span className="ml-1">Completo</span>}
+              </Badge>
+            </div>
           </div>
-        </div>
+          
+          <div className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-green-600" />
+              <span className="text-sm capitalize">{formatDate(match.date)}</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-green-600" />
+              <span className="text-sm">{match.time}</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-green-600" />
+              <span className="text-sm truncate">{match.location}</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-green-600" />
+              <span className="text-sm">Organizz.: {match.organizer}</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Euro className="h-4 w-4 text-green-600" />
+              <span className="text-sm">Quota: €{match.price.toFixed(2)}</span>
+            </div>
+            
+            {!isFull && isGoalkeeperMissing && (
+              <Alert variant="destructive" className="py-2 bg-orange-50 border-orange-200 text-orange-600">
+                <AlertDescription className="text-xs font-medium flex items-center">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  <span>Manca un portiere!</span>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </CardContent>
         
-        <div className="p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-green-600" />
-            <span className="text-sm capitalize">{formatDate(match.date)}</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-green-600" />
-            <span className="text-sm">{match.time}</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-green-600" />
-            <span className="text-sm truncate">{match.location}</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-green-600" />
-            <span className="text-sm">Organizz.: {match.organizer}</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Euro className="h-4 w-4 text-green-600" />
-            <span className="text-sm">Quota: €{match.price.toFixed(2)}</span>
-          </div>
-          
-          {!isFull && isGoalkeeperMissing && (
-            <Alert variant="destructive" className="py-2 bg-orange-50 border-orange-200 text-orange-600">
-              <AlertDescription className="text-xs font-medium flex items-center">
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                <span>Manca un portiere!</span>
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-      </CardContent>
-      
-      <CardFooter className="flex justify-between p-4 pt-0 gap-2">
-        <motion.div className="flex-1" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-          <Button 
-            variant="outline" 
-            className="w-full flex items-center gap-1" 
-            onClick={(e) => {
-              e.stopPropagation();
-              handleViewDetails();
-            }}
-          >
-            <Info className="h-4 w-4" />
-            <span>Info</span>
-          </Button>
-        </motion.div>
-        <motion.div className="flex-1" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-          {isUserParticipating() ? (
+        <CardFooter className="flex justify-between p-4 pt-0 gap-2">
+          <motion.div className="flex-1" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button 
-              variant="destructive"
-              className="w-full flex items-center gap-1"
-              onClick={handleCancelParticipation}
-              disabled={isCancelling}
+              variant="outline" 
+              className="w-full flex items-center gap-1" 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewDetails();
+              }}
             >
-              <UserPlus className="h-4 w-4" />
-              {isCancelling ? "Disiscrizione..." : "Cancella iscrizione"}
+              <Info className="h-4 w-4" />
+              <span>Info</span>
             </Button>
-          ) : isFull ? (
-            <Button 
-              variant="secondary"
-              className="w-full flex items-center gap-1"
-              onClick={handleNotify}
-              disabled={isNotifying}
-            >
-              <Bell className="h-4 w-4" />
-              {isNotifying ? "Impostando..." : "Notificami"}
-            </Button>
-          ) : (
-            <Button 
-              variant="default"
-              className="w-full flex items-center gap-1"
-              disabled={isJoining || !isAuthenticated}
-              onClick={handleJoin}
-            >
-              <UserPlus className="h-4 w-4" />
-              {isJoining ? "Iscrizione..." : 
-               !isAuthenticated ? "Accedi" : "Partecipa"}
-            </Button>
-          )}
-        </motion.div>
-      </CardFooter>
-    </Card>
+          </motion.div>
+          <motion.div className="flex-1" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            {isUserParticipating() ? (
+              <Button 
+                variant="destructive"
+                className="w-full flex items-center gap-1"
+                onClick={handleCancelParticipation}
+                disabled={isCancelling}
+              >
+                <UserPlus className="h-4 w-4" />
+                {isCancelling ? "Disiscrizione..." : "Cancella iscrizione"}
+              </Button>
+            ) : isFull ? (
+              <Button 
+                variant="secondary"
+                className="w-full flex items-center gap-1"
+                onClick={handleNotify}
+                disabled={isNotifying}
+              >
+                <Bell className="h-4 w-4" />
+                {isNotifying ? "Impostando..." : "Notificami"}
+              </Button>
+            ) : (
+              <Button 
+                variant="default"
+                className="w-full flex items-center gap-1"
+                disabled={isJoining || !isAuthenticated}
+                onClick={handleJoin}
+              >
+                <UserPlus className="h-4 w-4" />
+                {isJoining ? "Iscrizione..." : 
+                 !isAuthenticated ? "Accedi" : "Partecipa"}
+              </Button>
+            )}
+          </motion.div>
+        </CardFooter>
+      </Card>
   );
 };
 

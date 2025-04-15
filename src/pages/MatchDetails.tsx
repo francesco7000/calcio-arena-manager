@@ -10,11 +10,28 @@ import { useToast } from "@/hooks/use-toast";
 import FootballField from "@/components/FootballField";
 import Header from "@/components/Header";
 import ParticipantsList from "@/components/ParticipantsList";
+import MatchActions from "@/components/MatchActions";
 import { Match, Participant } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 const MatchDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -119,6 +136,9 @@ const MatchDetails = () => {
     return participant ? participant.id : null;
   };
 
+  const [selectedTeam, setSelectedTeam] = useState<string>("A");
+  const [showTeamDialog, setShowTeamDialog] = useState(false);
+
   const handleJoin = async () => {
     if (!match || match.currentParticipants >= match.totalParticipants) return;
     
@@ -132,33 +152,49 @@ const MatchDetails = () => {
       return;
     }
     
+    // Verifica se l'utente è già iscritto
+    const { data: existingParticipant, error: checkError } = await supabase
+      .from('participants')
+      .select('*')
+      .eq('match_id', match.id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (checkError) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la verifica dell'iscrizione.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (existingParticipant) {
+      toast({
+        title: "Già iscritto",
+        description: "Sei già iscritto a questa partita.",
+        variant: "default"
+      });
+      return;
+    }
+    
+    // Mostra il dialog per la selezione del team
+    setShowTeamDialog(true);
+  };
+  
+  const confirmJoin = async () => {
+    if (!match || !user) return;
+    
     setIsJoining(true);
+    setShowTeamDialog(false);
+    
     try {
-      const userId = user.id;
-      const { data: existingParticipant, error: checkError } = await supabase
-        .from('participants')
-        .select('*')
-        .eq('match_id', match.id)
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (checkError) throw checkError;
-      
-      if (existingParticipant) {
-        toast({
-          title: "Già iscritto",
-          description: "Sei già iscritto a questa partita.",
-          variant: "default"
-        });
-        setIsJoining(false);
-        return;
-      }
-      
       const newParticipant = {
         match_id: match.id,
-        user_id: userId,
+        user_id: user.id,
         name: user.username || 'Utente',
-        position: 'MID' as const,
+        position: 'CC' as const,
+        team: selectedTeam, // Usa il team selezionato dall'utente
       };
       
       const { data, error } = await supabase
@@ -179,7 +215,7 @@ const MatchDetails = () => {
       
       toast({
         title: "Iscrizione confermata!",
-        description: "Ti sei iscritto alla partita con successo.",
+        description: `Ti sei iscritto alla partita con successo nel Team ${selectedTeam} (${selectedTeam === 'A' ? 'blu' : 'rosso'})`,
       });
       
       fetchMatch();
@@ -325,7 +361,7 @@ const MatchDetails = () => {
     return new Date(dateString).toLocaleDateString('it-IT', options);
   };
   
-  const isGoalkeeperMissing = match && !match.participants.some(p => p.position === 'GK');
+  const isGoalkeeperMissing = match && !match.participants.some(p => p.position === 'POR');
 
   if (loading) {
     return (
@@ -549,6 +585,56 @@ const MatchDetails = () => {
               </CardContent>
             </Card>
             
+            {/* Dialog per la selezione del team */}
+            <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Scegli la tua squadra</DialogTitle>
+                  <DialogDescription>
+                    Seleziona la squadra in cui vuoi giocare per questa partita.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="team-select">Squadra</Label>
+                    <Select value={selectedTeam} onValueChange={setSelectedTeam}>
+                      <SelectTrigger id="team-select">
+                        <SelectValue placeholder="Seleziona una squadra" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="A">
+                          <div className="flex items-center">
+                            <span className="h-3 w-3 rounded-full bg-blue-500 mr-2"></span>
+                            Team A
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="B">
+                          <div className="flex items-center">
+                            <span className="h-3 w-3 rounded-full bg-red-500 mr-2"></span>
+                            Team B
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowTeamDialog(false)}>Annulla</Button>
+                  <Button onClick={confirmJoin} disabled={isJoining}>
+                    {isJoining ? "Iscrizione in corso..." : "Conferma partecipazione"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            
+            {/* Admin actions */}
+            {isAdmin && (
+              <MatchActions 
+                match={match} 
+                onRemoveParticipant={handleParticipantRemoved} 
+              />
+            )}
+            
             {/* Separate card for participants list */}
             <ParticipantsList 
               maxParticipants={match.totalParticipants}
@@ -564,7 +650,7 @@ const MatchDetails = () => {
          <h3 className="font-medium text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                     Formazione
           </h3>        
-          {isAdmin && isUserParticipating() && (
+          {isAdmin && (
           <Button
             variant="outline"
             onClick={() => navigate(`/formation/${match.id}`)}

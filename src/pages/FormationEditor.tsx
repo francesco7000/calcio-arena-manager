@@ -187,9 +187,6 @@ const FormationEditor = () => {
       });
   
       setHasChanges(false);
-      setTimeout(() => {
-        navigate(`/match/${matchId}`);
-      }, 800);
     } catch (error) {
       console.error('Error saving formation:', error);
       toast({
@@ -202,18 +199,6 @@ const FormationEditor = () => {
     }
   };
   
-
-  // Reset formation positions
-  const resetFormation = () => {
-    // Imposta positions a un oggetto vuoto per tornare al layout di default
-    setPlayerPositions({});
-    setHasChanges(true);
-    toast({
-      title: "Formazione reimpostata",
-      description: "Le posizioni dei giocatori sono state reimpostate"
-    });
-  };
-
 
   if (loading) {
     return (
@@ -256,13 +241,6 @@ const FormationEditor = () => {
         <div className="flex justify-between items-center flex-wrap gap-2 mb-4">
 
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={resetFormation}
-              className="text-sm"
-            >
-              Reimposta
-            </Button>
             <Button
               variant="default"
               disabled={saving || !hasChanges}

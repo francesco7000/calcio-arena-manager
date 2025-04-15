@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { PushNotificationService } from "@/services/PushNotificationService";
 import Index from "./pages/Index";
 import MatchDetails from "./pages/MatchDetails";
 import Profile from "./pages/Profile";
@@ -35,6 +36,17 @@ function App() {
     document.addEventListener('gesturestart', function (e) {
       e.preventDefault();
     });
+    
+    // Inizializza il servizio di notifiche push
+    const initPushNotifications = async () => {
+      try {
+        await PushNotificationService.initialize();
+      } catch (error) {
+        console.error('Errore durante l\'inizializzazione delle notifiche push:', error);
+      }
+    };
+    
+    initPushNotifications();
   }, []);
 
   return (

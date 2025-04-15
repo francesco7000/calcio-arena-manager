@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Match, Participant } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { NotificationService } from "@/services/NotificationService";
 
 interface MatchActionsProps {
   match: Match;
@@ -28,22 +30,36 @@ interface MatchActionsProps {
 const MatchActions = ({ match, onRemoveParticipant }: MatchActionsProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
   const [isNotifying, setIsNotifying] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [participantToRemove, setParticipantToRemove] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleNotifyAll = async () => {
     setIsNotifying(true);
     
     try {
-      // In a real app, you would send notifications through Supabase
-      // For now, we'll simulate it
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Invia notifiche a tutti i partecipanti non guest tramite il servizio di notifiche
+      const message = `Promemoria: La partita a ${match.field} è confermata per il ${new Date(match.date).toLocaleDateString('it-IT')} alle ${match.time.substring(0, 5)}`;
       
-      toast({
-        title: "Notifica inviata",
-        description: `Tutti i ${match.participants?.length || 0} partecipanti sono stati notificati`,
-      });
+      const result = await NotificationService.notifyAllParticipants(
+        match.id,
+        message,
+        match.participants || []
+      );
+      
+      if (result.success) {
+        // Conta quanti partecipanti non sono guest
+        const nonGuestCount = (match.participants || []).filter(p => !p.user_id.startsWith('guest-')).length;
+        
+        toast({
+          title: "Notifica inviata",
+          description: `${nonGuestCount} partecipanti registrati sono stati notificati`,
+        });
+      } else {
+        throw new Error('Errore durante l\'invio delle notifiche');
+      }
     } catch (error) {
       console.error("Error notifying participants:", error);
       toast({
@@ -122,9 +138,9 @@ const MatchActions = ({ match, onRemoveParticipant }: MatchActionsProps) => {
     >
       <Card className="border-none shadow-lg mb-6">
         <CardContent className="p-6">
-          <CardTitle className="text-xl mb-4">Azioni Amministratore</CardTitle>
+          <CardTitle className="text-xl mb-4">Amministratore</CardTitle>
           
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Button 
               variant="outline" 
               className="flex items-center justify-center gap-2"
@@ -139,105 +155,42 @@ const MatchActions = ({ match, onRemoveParticipant }: MatchActionsProps) => {
               ) : (
                 <>
                   <Bell className="h-4 w-4" />
-                  Notifica tutti
+                  Notifica utenti registrati
                 </>
               )}
             </Button>
             
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button 
-                  variant="destructive" 
-                  className="flex items-center justify-center gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Elimina partita
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Questa azione eliminerà permanentemente la partita e non può essere annullata.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annulla</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteMatch} className="bg-destructive text-destructive-foreground">
-                    {isDeleting ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Eliminazione...
-                      </div>
-                    ) : "Elimina"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            
-            <Button 
-              variant="outline" 
-              className="flex items-center justify-center gap-2"
-              onClick={() => navigate('/admin')}
-            >
-              Torna al pannello
-            </Button>
-          </div>
-          
-          <div className="mt-6">
-            <h3 className="font-medium mb-2">Gestione Partecipanti</h3>
-            {match.participants.length > 0 ? (
-              <div className="space-y-2">
-                {match.participants.map((participant) => (
-                  <div 
-                    key={participant.id} 
-                    className="flex items-center justify-between p-2 bg-gray-50 rounded-md"
+            {isAdmin && (
+              <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="destructive" 
+                    className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700"
                   >
-                    <div className="flex items-center">
-                      <div className="bg-primary/10 w-8 h-8 rounded-full flex items-center justify-center mr-3">
-                        {participant.number}
-                      </div>
-                      <div>
-                        <p className="font-medium">{participant.name}</p>
-                        <p className="text-xs text-muted-foreground">{participant.position}</p>
-                      </div>
-                    </div>
-                    
-                    <AlertDialog open={participantToRemove === participant.id} onOpenChange={(open) => {
-                      if (!open) setParticipantToRemove(null);
-                    }}>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => setParticipantToRemove(participant.id)}
-                        >
-                          <UserMinus className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Rimuovi partecipante</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Sei sicuro di voler rimuovere {participant.name} dalla partita?
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Annulla</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => confirmRemoveParticipant(participant.id)}
-                            className="bg-destructive text-destructive-foreground"
-                          >
-                            Rimuovi
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-sm">Nessun partecipante iscritto</p>
+                    <Trash2 className="h-4 w-4" />
+                    Elimina partita
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Questa azione eliminerà permanentemente la partita e non può essere annullata.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annulla</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteMatch} className="bg-destructive text-destructive-foreground">
+                      {isDeleting ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Eliminazione...
+                        </div>
+                      ) : "Elimina"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </CardContent>

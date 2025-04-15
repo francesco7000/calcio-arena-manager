@@ -157,10 +157,6 @@ const Admin = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4 group">
-            <ArrowLeft className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-            Indietro
-          </Button>
         </motion.div>
         
         <div className="flex-1 flex items-center justify-center py-6">

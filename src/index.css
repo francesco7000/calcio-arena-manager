@@ -14,19 +14,19 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 122 39% 65%;  /* Verde più chiaro per botones principales */
+    --primary: 122 70% 50%;  /* Verde più acceso per bottoni principali */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 79% 75%;  /* Azul más claro para acciones secundarias */
+    --secondary: 210 90% 60%;  /* Blu più acceso per azioni secondarie */
     --secondary-foreground: 222.2 47.4% 11.2%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
+    --accent: 35 90% 60%;  /* Arancione acceso per elementi di accento */
     --accent-foreground: 222.2 47.4% 11.2%;
 
-    --destructive: 0 84.2% 80%;  /* Rojo más claro */
+    --destructive: 0 90% 60%;  /* Rosso più acceso */
     --destructive-foreground: 210 40% 98%;
 
     --border: 214.3 31.8% 91.4%;

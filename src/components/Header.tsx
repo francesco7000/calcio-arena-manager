@@ -1,6 +1,7 @@
 
 import { useNavigate } from "react-router-dom";
 import { Menu, User, Calendar, LogIn, LogOut, ChevronDown } from "lucide-react";
+import NotificationCenter from "@/components/NotificationCenter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -88,6 +89,7 @@ const Header = () => {
         </motion.div>
         
         <div className="flex items-center gap-2">
+          {isAuthenticated && <NotificationCenter />}
           <div className="flex items-center">
             <span className="text-sm text-muted-foreground mr-2 hidden sm:inline-block">
               {isAuthenticated ? user?.username : 'Guest'}

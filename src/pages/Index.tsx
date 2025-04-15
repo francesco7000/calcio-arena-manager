@@ -20,55 +20,58 @@ const Index = () => {
   const { user, isAuthenticated } = useAuth();
   const [myMatches, setMyMatches] = useState<Match[]>([]);
   useEffect(() => {
-    const fetchMatches = async () => {
-      setLoading(true);
-      try {
-        // Fetch real data from Supabase
-        const { data, error } = await supabase
-          .from('matches')
-          .select('*');
-        
-        if (error) throw error;
-        
-        // Transform data to match our frontend model if needed
-        const transformedMatches = data.map(match => ({
-          ...match,
-          totalParticipants: match.max_participants,
-          currentParticipants: match.current_participants || 0,
-          participants: []
-        }));
-        
-        // For each match, fetch its participants
-        for (const match of transformedMatches) {
-          const { data: participants, error: participantsError } = await supabase
-            .from('participants')
-            .select('*')
-            .eq('match_id', match.id);
-          
-          if (!participantsError && participants) {
-            match.participants = participants;
-          }
-        }
-        
-        setMatches(transformedMatches);
-        
-        // Se l'utente è autenticato, recupera le partite a cui è iscritto
-        if (isAuthenticated && user) {
-          const userMatches = transformedMatches.filter(match => 
-            match.participants.some(p => p.user_id === user.id)
-          );
-          setMyMatches(userMatches);
-        }
-      } catch (error) {
-        console.error('Error fetching matches:', error);
-        setMatches([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    
     
     fetchMatches();
   }, [isAuthenticated, user]);
+
+  const fetchMatches = async () => {
+    setLoading(true);
+    try {
+      // Fetch real data from Supabase
+      const { data, error } = await supabase
+        .from('matches')
+        .select('*');
+      
+      if (error) throw error;
+      
+      // Transform data to match our frontend model if needed
+      const transformedMatches = data.map(match => ({
+        ...match,
+        totalParticipants: match.max_participants,
+        currentParticipants: match.current_participants || 0,
+        participants: []
+      }));
+      
+      // For each match, fetch its participants
+      for (const match of transformedMatches) {
+        const { data: participants, error: participantsError } = await supabase
+          .from('participants')
+          .select('*')
+          .eq('match_id', match.id);
+        
+        if (!participantsError && participants) {
+          match.participants = participants;
+        }
+      }
+      
+      setMatches(transformedMatches);
+      
+      // Se l'utente è autenticato, recupera le partite a cui è iscritto
+      if (isAuthenticated && user) {
+        const userMatches = transformedMatches.filter(match => 
+          match.participants.some(p => p.user_id === user.id)
+        );
+        setMyMatches(userMatches);
+      }
+    } catch (error) {
+      console.error('Error fetching matches:', error);
+      setMatches([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFilterChange = (option: FilterOption) => {
     setFilterOption(option);
   };
@@ -206,7 +209,7 @@ const Index = () => {
           </div>
           
           {/* Tabs to switch between weekly matches and participating matches */}
-          <Tabs value={viewTab} onValueChange={value => setViewTab(value as ViewTab)} className="w-full">
+          <Tabs value={viewTab} onValueChange={(value) => {fetchMatches(); setViewTab(value as ViewTab); }} className="w-full">
             <TabsList className="grid grid-cols-2 w-full mb-4">
               <TabsTrigger value="weekly" className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
