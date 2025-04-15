@@ -46,6 +46,30 @@ export const NotificationService = {
         .upsert(notifications, { onConflict: 'match_id,user_id' });
 
       if (error) throw error;
+      
+      // Invia anche notifiche push a tutti i partecipanti
+      // Importiamo dinamicamente il PushNotificationService per evitare dipendenze circolari
+      const { PushNotificationService } = await import('./PushNotificationService');
+      
+      // Verifica se le notifiche push sono supportate
+      const pushSupported = await PushNotificationService.arePushNotificationsSupported();
+      const hasPermission = await PushNotificationService.hasNotificationPermission();
+      
+      if (pushSupported && hasPermission) {
+        // Invia una notifica push locale
+        await PushNotificationService.sendLocalNotification('Calcio Arena', {
+          body: message,
+          icon: '/icon-192.png',
+          badge: '/favicon.ico',
+          vibrate: [100, 50, 100],
+          data: {
+            url: `/match/${matchId}`,
+            matchId: matchId
+          },
+          tag: `match-${matchId}` // Usa un tag per raggruppare notifiche simili
+        });
+      }
+      
       return { success: true, data };
     } catch (error) {
       console.error('Errore durante l\'invio delle notifiche:', error);

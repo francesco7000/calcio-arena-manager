@@ -42,7 +42,10 @@ self.addEventListener('push', (event) => {
             action: 'close',
             title: 'Chiudi'
           }
-        ]
+        ],
+        // Aggiunta per iOS/Safari
+        tag: data.matchId ? `match-${data.matchId}` : 'calcio-arena-notification',
+        renotify: true // Forza la notifica anche se esiste già una con lo stesso tag
       };
       
       event.waitUntil(
@@ -51,6 +54,23 @@ self.addEventListener('push', (event) => {
     } catch (error) {
       console.error('Errore durante l\'elaborazione della notifica push:', error);
     }
+  }
+});
+
+// Gestione delle notifiche push per Safari/iOS (fallback)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'PUSH_NOTIFICATION') {
+    const data = event.data.payload;
+    const options = {
+      body: data.body || 'Nuova notifica dalla Calcio Arena',
+      icon: '/icon-192.png',
+      badge: '/favicon.ico',
+      data: data.data || {},
+      tag: data.tag || 'calcio-arena-notification',
+      renotify: true
+    };
+    
+    self.registration.showNotification(data.title || 'Calcio Arena', options);
   }
 });
 
