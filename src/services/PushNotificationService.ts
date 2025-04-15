@@ -155,5 +155,54 @@ export const PushNotificationService = {
     });
 
     return true;
-  }
+  },
+
+  /**
+   * Sottoscrive l'utente alle notifiche push Web Push (VAPID)
+   * e invia la subscription al backend
+   */
+  async subscribeUserToPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.warn('Web Push non supportato su questo browser.');
+      return null;
+    }
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      // Chiave pubblica VAPID fornita dall'utente
+      const VAPID_PUBLIC_KEY = "BBGAMOeHjZf5t_y2nWMCcy0db4UTQ1d7xEux-hqmdnM_zy_WbzQUeWhf_owBr7P4GQ0PtBanwhQ-_8ySxTmTse8";
+      if (!VAPID_PUBLIC_KEY) {
+        console.error('Chiave pubblica VAPID non configurata.');
+        return null;
+      }
+      const convertedVapidKey = this.urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedVapidKey
+      });
+      // Invia la subscription al backend per salvarla e associarla all'utente
+      await fetch('/api/save-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription)
+      });
+      return subscription;
+    } catch (error) {
+      console.error('Errore durante la sottoscrizione Web Push:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Utility per convertire la chiave VAPID da base64 a Uint8Array
+   */
+  urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  },
 };
