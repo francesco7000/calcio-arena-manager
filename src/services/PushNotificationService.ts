@@ -104,8 +104,34 @@ export const PushNotificationService = {
       // Per Safari/iOS, utilizziamo l'API Notification direttamente
       if (this.isSafari() || this.isIOS()) {
         try {
-          new Notification(title, options);
-          return true;
+          // Prova a utilizzare il service worker se disponibile
+          if ('serviceWorker' in navigator) {
+            try {
+              const registration = await navigator.serviceWorker.ready;
+              // Invia un messaggio al service worker per mostrare la notifica
+              registration.active?.postMessage({
+                type: 'PUSH_NOTIFICATION',
+                payload: {
+                  title: title,
+                  body: options.body,
+                  icon: options.icon,
+                  badge: options.badge,
+                  data: options.data,
+                  tag: options.tag
+                }
+              });
+              return true;
+            } catch (swError) {
+              console.log('Service worker non disponibile, utilizzo notifica nativa:', swError);
+              // Fallback all'API Notification nativa
+              new Notification(title, options);
+              return true;
+            }
+          } else {
+            // Fallback all'API Notification nativa
+            new Notification(title, options);
+            return true;
+          }
         } catch (error) {
           console.error('Errore durante l\'invio della notifica su Safari/iOS:', error);
           return false;
@@ -131,7 +157,19 @@ export const PushNotificationService = {
       const hasPermission = await this.requestNotificationPermission();
       if (!hasPermission) return false;
       
-      // Su Safari/iOS non abbiamo bisogno del service worker per le notifiche base
+      // Anche su Safari/iOS proviamo a registrare il service worker
+      // per supportare le notifiche push quando possibile
+      try {
+        const registration = await this.registerServiceWorker();
+        if (registration) {
+          // Prova a sottoscrivere l'utente alle notifiche push
+          await this.subscribeUserToPush();
+        }
+      } catch (error) {
+        console.log('Service Worker non supportato su Safari/iOS, utilizziamo le notifiche base');
+        // Continuiamo comunque perché possiamo usare le notifiche base
+      }
+      
       return true;
     }
     
@@ -154,12 +192,15 @@ export const PushNotificationService = {
       }
     });
 
+    // Sottoscrivi l'utente alle notifiche push
+    await this.subscribeUserToPush();
+
     return true;
   },
 
   /**
    * Sottoscrive l'utente alle notifiche push Web Push (VAPID)
-   * e invia la subscription al backend
+   * e salva la subscription nel database Supabase
    */
   async subscribeUserToPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -179,12 +220,43 @@ export const PushNotificationService = {
         userVisibleOnly: true,
         applicationServerKey: convertedVapidKey
       });
-      // Invia la subscription al backend per salvarla e associarla all'utente
-      await fetch('/api/save-subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription)
-      });
+      
+      // Ottieni l'utente corrente da Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('Utente non autenticato, impossibile salvare la subscription');
+        return null;
+      }
+      
+      // Salva la subscription nel database Supabase
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert({
+          user_id: user.id,
+          subscription: JSON.stringify(subscription),
+          device_info: {
+            is_safari: this.isSafari(),
+            is_ios: this.isIOS(),
+            user_agent: navigator.userAgent
+          },
+          created_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+      
+      if (error) {
+        console.error('Errore durante il salvataggio della subscription:', error);
+      } else {
+        console.log('Subscription salvata con successo per l\'utente:', user.id);
+        
+        // Per iOS/Safari, inviamo una notifica di test per verificare che funzioni
+        if (this.isSafari() || this.isIOS()) {
+          await this.sendLocalNotification('Calcio Arena', {
+            body: 'Le notifiche sono state attivate con successo!',
+            icon: '/icon-192.png'
+          });
+        }
+      }
+      
       return subscription;
     } catch (error) {
       console.error('Errore durante la sottoscrizione Web Push:', error);
