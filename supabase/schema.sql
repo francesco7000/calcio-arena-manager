@@ -4,13 +4,17 @@ DROP FUNCTION IF EXISTS update_title;
 
 DROP TRIGGER IF EXISTS update_match_participants_count_trigger ON participants;
 DROP TRIGGER IF EXISTS update_formations_updated_at_trigger ON formations;
+DROP TRIGGER IF EXISTS update_push_subscriptions_updated_at_trigger ON push_subscriptions;
 DROP FUNCTION IF EXISTS update_match_participants_count;
+DROP FUNCTION IF EXISTS update_push_subscriptions_updated_at;
+
 
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS participants CASCADE;
 DROP TABLE IF EXISTS formation CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS matches CASCADE;
+DROP TABLE IF EXISTS push_subscriptions CASCADE;
 
 DROP INDEX IF EXISTS formations_match_id_idx;
 
@@ -154,3 +158,29 @@ CREATE TRIGGER update_formations_updated_at_trigger
 BEFORE UPDATE ON formations
 FOR EACH ROW
 EXECUTE FUNCTION update_formations_updated_at();
+
+
+-- Aggiungi la tabella push_subscriptions al database
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  subscription JSONB NOT NULL,
+  device_info JSONB,
+  last_used TIMESTAMP WITH TIME ZONE,
+  UNIQUE(user_id)
+);
+
+CREATE OR REPLACE FUNCTION update_push_subscriptions_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_push_subscriptions_updated_at_trigger
+BEFORE UPDATE ON push_subscriptions
+FOR EACH ROW
+EXECUTE FUNCTION update_push_subscriptions_updated_at();

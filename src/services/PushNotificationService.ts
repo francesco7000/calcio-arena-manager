@@ -383,7 +383,6 @@ export const PushNotificationService = {
     if (this.isIOS() && this.isPWA()) {
       console.log('Dispositivo iOS in modalità PWA, tentativo di registrazione push...');
     }
-    
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       console.warn('Web Push non supportato su questo browser.');
       return null;
@@ -396,10 +395,9 @@ export const PushNotificationService = {
         console.error('Chiave pubblica VAPID non configurata.');
         return null;
       }
-      
       // Verifica se esiste già una sottoscrizione
       let subscription = await registration.pushManager.getSubscription();
-      
+      let isNewSubscription = false;
       // Se non esiste, crea una nuova sottoscrizione
       if (!subscription) {
         console.log('Creazione di una nuova sottoscrizione push...');
@@ -409,33 +407,28 @@ export const PushNotificationService = {
           applicationServerKey: convertedVapidKey
         });
         console.log('Nuova sottoscrizione push creata:', subscription);
+        isNewSubscription = true;
       } else {
         console.log('Sottoscrizione push esistente trovata:', subscription);
       }
-      
       // Ottieni l'utente corrente da Supabase
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) {
         console.error('Utente non autenticato, impossibile salvare la subscription');
         return null;
       }
-      
       // Ottieni l'ID UUID dell'utente dalla tabella users
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('id')
         .eq('username', user.email || user.id)
         .single();
-      
       if (userError || !userData) {
         console.error('Errore durante il recupero dell\'ID utente:', userError);
         console.log('Username cercato:', user.email || user.id);
         return null;
       }
-      
       console.log('ID utente trovato:', userData.id);
-      
       // Salva la subscription nel database Supabase
       const { error } = await supabase
         .from('push_subscriptions')
@@ -450,22 +443,18 @@ export const PushNotificationService = {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString() // Aggiungiamo un timestamp di aggiornamento
         }, { onConflict: 'user_id' });
-      
       if (error) {
         console.error('Errore durante il salvataggio della subscription:', error);
         console.log('Dettagli errore:', error);
       } else {
         console.log('Subscription salvata con successo per l\'utente:', userData.id);
-        
-        // Per iOS/Safari, inviamo una notifica di test per verificare che funzioni
-        if (this.isSafari() || this.isIOS()) {
+        if (isNewSubscription && (this.isSafari() || this.isIOS())) {
           await this.sendLocalNotification('Calcio Arena', {
             body: 'Le notifiche sono state attivate con successo!',
             icon: '/icon-192.png'
           });
         }
       }
-      
       return subscription;
     } catch (error) {
       console.error('Errore durante la sottoscrizione Web Push:', error);
