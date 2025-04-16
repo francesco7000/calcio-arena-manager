@@ -94,6 +94,15 @@ export const PushNotificationService = {
         if (permission === 'granted') {
           localStorage.setItem('notification_permission_safari', 'granted');
           
+          // Registra il dispositivo nel database anche se Web Push non è supportato
+          try {
+            // Tenta di registrare il dispositivo nel database
+            await this.subscribeUserToPush();
+            console.log('Dispositivo iOS registrato dopo concessione permesso');
+          } catch (regError) {
+            console.error('Errore durante la registrazione del dispositivo iOS:', regError);
+          }
+          
           // Mostra un messaggio per guidare l'utente ad abilitare le notifiche nelle impostazioni di Safari
           if (this.isIOS() && !this.isPWA()) {
             alert('Per ricevere notifiche su iPhone/iPad, assicurati di: 1. Abilitare le notifiche nelle Impostazioni di iOS 2. Andare su Impostazioni > Safari > Notifiche 3. Attivare "Consenti notifiche" per questo sito');
@@ -107,6 +116,16 @@ export const PushNotificationService = {
       } else {
         // Per gli altri browser, procediamo normalmente
         const permission = await Notification.requestPermission();
+        
+        // Se il permesso è stato concesso, registra la sottoscrizione
+        if (permission === 'granted') {
+          try {
+            await this.subscribeUserToPush();
+          } catch (regError) {
+            console.error('Errore durante la registrazione della sottoscrizione:', regError);
+          }
+        }
+        
         return permission === 'granted';
       }
     } catch (error) {
@@ -248,6 +267,16 @@ export const PushNotificationService = {
       const savedPermission = localStorage.getItem('notification_permission_safari');
       console.log('Stato permesso notifiche:', { currentPermission, savedPermission });
       
+      // Tenta di registrare il dispositivo nel database anche se non abbiamo ancora il permesso
+      // Questo è importante per iOS dove Web Push potrebbe non essere supportato
+      try {
+        console.log('Tentativo di registrazione dispositivo iOS nel database...');
+        await this.subscribeUserToPush();
+      } catch (regError) {
+        console.error('Errore durante la registrazione iniziale del dispositivo iOS:', regError);
+        // Continuiamo comunque con l'inizializzazione
+      }
+      
       // Richiedi sempre il permesso all'avvio dell'app se non è già stato concesso
       // Questo è fondamentale per Safari che potrebbe non mostrare il popup automaticamente
       if (currentPermission !== 'granted' && savedPermission !== 'granted') {
@@ -325,7 +354,7 @@ export const PushNotificationService = {
    * Aggiorna la sottoscrizione push nel database
    * @param subscription La nuova sottoscrizione push
    */
-  async updatePushSubscriptionInDatabase(subscription: PushSubscription) {
+  async updatePushSubscriptionInDatabase(subscription: PushSubscription | null) {
     try {
       // Ottieni l'utente corrente da Supabase
       const { data: { user } } = await supabase.auth.getUser();
@@ -344,18 +373,22 @@ export const PushNotificationService = {
       
       if (userError || !userData) {
         console.error('Errore durante il recupero dell\'ID utente:', userError);
+        console.log('Username cercato:', user.email || user.id);
         return false;
       }
+      
+      console.log('Aggiornamento subscription per utente:', userData.id);
       
       // Aggiorna la subscription nel database Supabase
       const { error } = await supabase
         .from('push_subscriptions')
         .upsert({
           user_id: userData.id, // Usa l'ID UUID dalla tabella users
-          subscription: JSON.stringify(subscription),
+          subscription: subscription ? JSON.stringify(subscription) : null,
           device_info: {
             is_safari: this.isSafari(),
             is_ios: this.isIOS(),
+            is_pwa: this.isPWA(),
             user_agent: navigator.userAgent
           },
           updated_at: new Date().toISOString()
@@ -363,17 +396,15 @@ export const PushNotificationService = {
       
       if (error) {
         console.log('Dettagli errore:', error);
-      }
-      
-      if (error) {
         console.error('Errore durante l\'aggiornamento della subscription:', error);
         return false;
       } else {
-        console.log('Subscription aggiornata con successo per l\'utente:', user.id);
+        console.log('Subscription aggiornata con successo per l\'utente:', userData.id);
         return true;
       }
     } catch (error) {
       console.error('Errore durante l\'aggiornamento della subscription push:', error);
+      console.log('Dettagli errore:', error);
       return false;
     }
   },
@@ -383,8 +414,62 @@ export const PushNotificationService = {
     if (this.isIOS() && this.isPWA()) {
       console.log('Dispositivo iOS in modalità PWA, tentativo di registrazione push...');
     }
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.warn('Web Push non supportato su questo browser.');
+    
+    // Verifica supporto Web Push
+    const isWebPushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
+    console.log('Web Push supportato:', isWebPushSupported);
+    
+    // Ottieni l'utente corrente da Supabase anche se Web Push non è supportato
+    // per poter comunque registrare il dispositivo nel database
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('Utente non autenticato, impossibile salvare la subscription');
+      return null;
+    }
+    
+    // Ottieni l'ID UUID dell'utente dalla tabella users
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', user.email || user.id)
+      .single();
+    
+    if (userError || !userData) {
+      console.error('Errore durante il recupero dell\'ID utente:', userError);
+      console.log('Username cercato:', user.email || user.id);
+      return null;
+    }
+    
+    console.log('ID utente trovato:', userData.id);
+    
+    // Se Web Push non è supportato (come su Safari iOS non-PWA),
+    // registriamo comunque il dispositivo nel database
+    if (!isWebPushSupported) {
+      console.warn('Web Push non supportato su questo browser, registrazione base del dispositivo.');
+      
+      // Registra il dispositivo senza subscription push
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert({
+          user_id: userData.id,
+          subscription: null, // Nessuna subscription disponibile
+          device_info: {
+            is_safari: this.isSafari(),
+            is_ios: this.isIOS(),
+            is_pwa: this.isPWA(),
+            user_agent: navigator.userAgent
+          },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+      
+      if (error) {
+        console.error('Errore durante la registrazione del dispositivo:', error);
+        console.log('Dettagli errore:', error);
+      } else {
+        console.log('Dispositivo registrato con successo per l\'utente:', userData.id);
+      }
+      
       return null;
     }
     try {
@@ -411,24 +496,7 @@ export const PushNotificationService = {
       } else {
         console.log('Sottoscrizione push esistente trovata:', subscription);
       }
-      // Ottieni l'utente corrente da Supabase
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error('Utente non autenticato, impossibile salvare la subscription');
-        return null;
-      }
-      // Ottieni l'ID UUID dell'utente dalla tabella users
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('username', user.email || user.id)
-        .single();
-      if (userError || !userData) {
-        console.error('Errore durante il recupero dell\'ID utente:', userError);
-        console.log('Username cercato:', user.email || user.id);
-        return null;
-      }
-      console.log('ID utente trovato:', userData.id);
+      // L'utente e userData sono già stati recuperati all'inizio del metodo
       // Salva la subscription nel database Supabase
       const { error } = await supabase
         .from('push_subscriptions')
