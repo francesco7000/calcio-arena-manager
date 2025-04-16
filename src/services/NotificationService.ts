@@ -186,6 +186,8 @@ export const NotificationService = {
         return { success: false, error: { message: "Non è possibile inviare notifiche agli utenti ospiti" } };
       }
 
+      console.log('Invio notifica al singolo utente:', userId);
+
       // Crea la notifica
       const notification = {
         match_id: matchId,
@@ -199,7 +201,28 @@ export const NotificationService = {
         .from('notifications')
         .upsert(notification, { onConflict: 'match_id,user_id' });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Errore durante l\'inserimento della notifica nel database:', error);
+        throw error;
+      }
+      
+      // Invia anche una notifica push
+      try {
+        // Importiamo dinamicamente il PushNotificationService per evitare dipendenze circolari
+        const { PushNotificationService } = await import('./PushNotificationService');
+        
+        // Invia notifica push tramite il server
+        await this.sendServerPushNotification([userId], {
+          title: 'Calcio Arena',
+          message: message,
+          url: `/match/${matchId}`,
+          matchId: matchId
+        });
+      } catch (pushError) {
+        console.error('Errore durante l\'invio della notifica push:', pushError);
+        // Non blocchiamo il flusso se la notifica push fallisce
+      }
+      
       return { success: true, data };
     } catch (error) {
       console.error('Errore durante l\'invio della notifica:', error);
@@ -222,21 +245,58 @@ export const NotificationService = {
 
       console.log('Invio notifiche push agli utenti:', userIds);
       
-      // Ottieni gli UUID degli utenti dalla tabella users
-      const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('id')
-        .in('username', userIds);
+      // Verifica se gli userIds sono già UUID o sono username
+      console.log('Tipo di userIds ricevuti:', userIds);
       
-      if (usersError || !usersData || usersData.length === 0) {
-        console.error('Errore durante il recupero degli ID utenti:', usersError);
-        return { success: false, error: usersError || { message: 'Nessun utente trovato' } };
+      let userUUIDs: string[] = [];
+      
+      // Verifica se gli ID passati sono già UUID o sono username
+      // Se iniziano con 'guest-' li saltiamo, se sono UUID li usiamo direttamente
+      // altrimenti cerchiamo di recuperare gli UUID dalla tabella users
+      const nonGuestUserIds = userIds.filter(id => !id.startsWith('guest-'));
+      
+      // Se non ci sono utenti non guest, restituisci successo senza fare nulla
+      if (nonGuestUserIds.length === 0) {
+        console.log('Nessun utente non guest a cui inviare notifiche push');
+        return { success: true, message: 'Nessun utente non guest a cui inviare notifiche push' };
       }
       
-      const userUUIDs = usersData.map(user => user.id);
+      // Verifica se gli ID sembrano essere UUID (36 caratteri con trattini)
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const areUUIDs = nonGuestUserIds.every(id => uuidPattern.test(id));
+      
+      if (areUUIDs) {
+        // Se sono già UUID, li usiamo direttamente
+        console.log('Gli ID utenti sono già UUID, li uso direttamente');
+        userUUIDs = nonGuestUserIds;
+      } else {
+        // Altrimenti, cerchiamo di recuperare gli UUID dalla tabella users usando gli username
+        console.log('Gli ID utenti sembrano essere username, cerco gli UUID corrispondenti');
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('id')
+          .in('username', nonGuestUserIds);
+        
+        if (usersError || !usersData || usersData.length === 0) {
+          console.error('Errore durante il recupero degli ID utenti:', usersError);
+          return { success: false, error: usersError || { message: 'Nessun utente trovato' } };
+        }
+        
+        userUUIDs = usersData.map(user => user.id);
+      }
+      
+      console.log('UUID utenti da notificare:', userUUIDs);
+      
+      // Log degli UUID trovati
       console.log('UUID utenti trovati:', userUUIDs);
       
       // Ottieni le sottoscrizioni push per gli utenti specificati usando gli UUID
+      if (userUUIDs.length === 0) {
+        console.log('Nessun UUID utente valido trovato per le sottoscrizioni push');
+        return { success: true, message: 'Nessun UUID utente valido trovato' };
+      }
+
+      console.log('Cerco sottoscrizioni push per gli UUID:', userUUIDs);
       const { data: subscriptions, error } = await supabase
         .from('push_subscriptions')
         .select('subscription')

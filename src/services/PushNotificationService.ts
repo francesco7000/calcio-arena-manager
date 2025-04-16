@@ -80,20 +80,35 @@ export const PushNotificationService = {
     }
 
     try {
-      const permission = await Notification.requestPermission();
-      
-      // Se siamo su iOS/Safari, mostriamo un messaggio aggiuntivo per guidare l'utente
-      if (permission === 'granted' && (this.isSafari() || this.isIOS())) {
-        // Salva l'impostazione nel localStorage per ricordare che l'utente ha dato il permesso
-        localStorage.setItem('notification_permission_safari', 'granted');
+      // Per Safari, potremmo dover forzare la visualizzazione del popup
+      // Questo è particolarmente importante quando l'app è condivisa o installata come PWA
+      if (this.isSafari() || this.isIOS()) {
+        console.log('Richiesta permesso notifiche su Safari/iOS');
         
-        // Mostra un messaggio per guidare l'utente ad abilitare le notifiche nelle impostazioni di Safari
-        if (this.isIOS()) {
-          alert('Per ricevere notifiche su iPhone/iPad, assicurati di: 1. Abilitare le notifiche nelle Impostazioni di iOS 2.  Andare su Impostazioni > Safari > Notifiche 3. Attivare "Consenti notifiche" per questo sito');
+        // Forza la visualizzazione del popup di richiesta permesso
+        // Questo è necessario perché Safari potrebbe non mostrarlo automaticamente
+        const permission = await Notification.requestPermission();
+        console.log('Permesso notifiche Safari/iOS:', permission);
+        
+        // Salva l'impostazione nel localStorage per ricordare che l'utente ha dato il permesso
+        if (permission === 'granted') {
+          localStorage.setItem('notification_permission_safari', 'granted');
+          
+          // Mostra un messaggio per guidare l'utente ad abilitare le notifiche nelle impostazioni di Safari
+          if (this.isIOS() && !this.isPWA()) {
+            alert('Per ricevere notifiche su iPhone/iPad, assicurati di: 1. Abilitare le notifiche nelle Impostazioni di iOS 2. Andare su Impostazioni > Safari > Notifiche 3. Attivare "Consenti notifiche" per questo sito');
+          }
+        } else if (permission === 'denied') {
+          // Se l'utente ha negato il permesso, mostra un messaggio informativo
+          alert('Hai negato il permesso per le notifiche. Per riceverle, dovrai abilitarle nelle impostazioni del browser.');
         }
+        
+        return permission === 'granted';
+      } else {
+        // Per gli altri browser, procediamo normalmente
+        const permission = await Notification.requestPermission();
+        return permission === 'granted';
       }
-      
-      return permission === 'granted';
     } catch (error) {
       console.error('Errore durante la richiesta di permesso per le notifiche:', error);
       return false;
@@ -217,50 +232,65 @@ export const PushNotificationService = {
    * Inizializza il sistema di notifiche push
    */
   async initialize() {
+    // Registra il service worker indipendentemente dal browser
+    const registration = await this.registerServiceWorker();
+    
     // Per Safari/iOS, gestiamo le notifiche in modo diverso
     if (this.isSafari() || this.isIOS()) {
-      // Richiedi il permesso per le notifiche
-      const hasPermission = await this.requestNotificationPermission();
-      if (!hasPermission) return false;
+      console.log('Inizializzazione notifiche per Safari/iOS');
       
-      // Se l'app è installata come PWA, le notifiche potrebbero funzionare meglio
+      // Verifica se siamo in modalità PWA
       const isPWA = this.isPWA();
-      if (isPWA) {
-        console.log('App in esecuzione come PWA, le notifiche potrebbero funzionare meglio');
+      console.log('App in modalità PWA:', isPWA);
+      
+      // Verifica se l'utente ha già dato il permesso
+      const currentPermission = Notification.permission;
+      const savedPermission = localStorage.getItem('notification_permission_safari');
+      console.log('Stato permesso notifiche:', { currentPermission, savedPermission });
+      
+      // Richiedi sempre il permesso all'avvio dell'app se non è già stato concesso
+      // Questo è fondamentale per Safari che potrebbe non mostrare il popup automaticamente
+      if (currentPermission !== 'granted' && savedPermission !== 'granted') {
+        console.log('Richiedo permesso notifiche per Safari/iOS');
+        const hasPermission = await this.requestNotificationPermission();
+        console.log('Permesso notifiche ottenuto:', hasPermission);
+        if (!hasPermission) return false;
       }
       
       // Anche su Safari/iOS proviamo a registrare il service worker
       // per supportare le notifiche push quando possibile
-      try {
-        const registration = await this.registerServiceWorker();
-        if (registration) {
+      if (registration) {
+        try {
           // Prova a sottoscrivere l'utente alle notifiche push
           await this.subscribeUserToPush();
           
           // Invia una notifica di test per verificare la configurazione
           setTimeout(() => {
-            this.sendLocalNotification('Test Notifica', {
-              body: 'Questa è una notifica di test per verificare la configurazione',
+            this.sendLocalNotification('Calcio Arena', {
+              body: 'Notifiche attivate con successo!',
               icon: '/icon-192.png',
               tag: 'test-notification'
             });
           }, 2000);
+        } catch (error) {
+          console.log('Errore durante la configurazione delle notifiche:', error);
+          // Continuiamo comunque perché possiamo usare le notifiche base
         }
-      } catch (error) {
-        console.log('Service Worker non supportato su Safari/iOS, utilizziamo le notifiche base');
-        // Continuiamo comunque perché possiamo usare le notifiche base
       }
       
       return true;
     }
     
-    // Per gli altri browser, procediamo con il service worker
-    const registration = await this.registerServiceWorker();
+    // Per gli altri browser, procediamo con la configurazione standard
     if (!registration) return false;
 
-    // Richiedi il permesso per le notifiche
-    const hasPermission = await this.requestNotificationPermission();
-    if (!hasPermission) return false;
+    // Richiedi il permesso per le notifiche se non è già stato concesso
+    const currentPermission = Notification.permission;
+    if (currentPermission !== 'granted') {
+      console.log('Richiedo permesso notifiche per browser standard');
+      const hasPermission = await this.requestNotificationPermission();
+      if (!hasPermission) return false;
+    }
 
     // Configura l'ascolto dei messaggi dal service worker
     navigator.serviceWorker.addEventListener('message', (event) => {

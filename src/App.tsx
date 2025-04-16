@@ -40,6 +40,29 @@ function App() {
     // Inizializza il servizio di notifiche push
     const initPushNotifications = async () => {
       try {
+        // Verifica se siamo in Safari e se l'app è in modalità PWA
+        const isSafari = PushNotificationService.isSafari();
+        const isIOS = PushNotificationService.isIOS();
+        const isPWA = PushNotificationService.isPWA();
+        
+        console.log('Ambiente app:', { isSafari, isIOS, isPWA });
+        
+        // Richiedi esplicitamente il permesso per le notifiche all'avvio dell'app
+        // Questo è particolarmente importante per Safari che potrebbe non mostrare il popup automaticamente
+        if ((isSafari || isIOS) && Notification.permission !== 'granted') {
+          console.log('Richiedo permesso notifiche all\'avvio dell\'app');
+          // Aggiungiamo un piccolo ritardo per assicurarci che l'app sia completamente caricata
+          setTimeout(async () => {
+            try {
+              const hasPermission = await PushNotificationService.requestNotificationPermission();
+              console.log('Permesso notifiche ottenuto all\'avvio:', hasPermission);
+            } catch (permError) {
+              console.error('Errore durante la richiesta permesso notifiche:', permError);
+            }
+          }, 1000);
+        }
+        
+        // Inizializza il servizio di notifiche push
         await PushNotificationService.initialize();
       } catch (error) {
         console.error('Errore durante l\'inizializzazione delle notifiche push:', error);
