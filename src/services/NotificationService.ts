@@ -220,11 +220,27 @@ export const NotificationService = {
         return { success: true, message: 'Nessun utente a cui inviare notifiche push' };
       }
 
-      // Ottieni le sottoscrizioni push per gli utenti specificati
+      console.log('Invio notifiche push agli utenti:', userIds);
+      
+      // Ottieni gli UUID degli utenti dalla tabella users
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id')
+        .in('username', userIds);
+      
+      if (usersError || !usersData || usersData.length === 0) {
+        console.error('Errore durante il recupero degli ID utenti:', usersError);
+        return { success: false, error: usersError || { message: 'Nessun utente trovato' } };
+      }
+      
+      const userUUIDs = usersData.map(user => user.id);
+      console.log('UUID utenti trovati:', userUUIDs);
+      
+      // Ottieni le sottoscrizioni push per gli utenti specificati usando gli UUID
       const { data: subscriptions, error } = await supabase
         .from('push_subscriptions')
         .select('subscription')
-        .in('user_id', userIds);
+        .in('user_id', userUUIDs);
 
       if (error) {
         console.error('Errore durante il recupero delle sottoscrizioni push:', error);

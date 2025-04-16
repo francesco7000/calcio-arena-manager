@@ -305,11 +305,23 @@ export const PushNotificationService = {
         return false;
       }
       
+      // Ottieni l'ID UUID dell'utente dalla tabella users
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', user.email || user.id)
+        .single();
+      
+      if (userError || !userData) {
+        console.error('Errore durante il recupero dell\'ID utente:', userError);
+        return false;
+      }
+      
       // Aggiorna la subscription nel database Supabase
       const { error } = await supabase
         .from('push_subscriptions')
         .upsert({
-          user_id: user.id,
+          user_id: userData.id, // Usa l'ID UUID dalla tabella users
           subscription: JSON.stringify(subscription),
           device_info: {
             is_safari: this.isSafari(),
@@ -318,6 +330,10 @@ export const PushNotificationService = {
           },
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
+      
+      if (error) {
+        console.log('Dettagli errore:', error);
+      }
       
       if (error) {
         console.error('Errore durante l\'aggiornamento della subscription:', error);
@@ -375,11 +391,26 @@ export const PushNotificationService = {
         return null;
       }
       
+      // Ottieni l'ID UUID dell'utente dalla tabella users
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', user.email || user.id)
+        .single();
+      
+      if (userError || !userData) {
+        console.error('Errore durante il recupero dell\'ID utente:', userError);
+        console.log('Username cercato:', user.email || user.id);
+        return null;
+      }
+      
+      console.log('ID utente trovato:', userData.id);
+      
       // Salva la subscription nel database Supabase
       const { error } = await supabase
         .from('push_subscriptions')
         .upsert({
-          user_id: user.id,
+          user_id: userData.id, // Usa l'ID UUID dalla tabella users
           subscription: JSON.stringify(subscription),
           device_info: {
             is_safari: this.isSafari(),
@@ -392,8 +423,9 @@ export const PushNotificationService = {
       
       if (error) {
         console.error('Errore durante il salvataggio della subscription:', error);
+        console.log('Dettagli errore:', error);
       } else {
-        console.log('Subscription salvata con successo per l\'utente:', user.id);
+        console.log('Subscription salvata con successo per l\'utente:', userData.id);
         
         // Per iOS/Safari, inviamo una notifica di test per verificare che funzioni
         if (this.isSafari() || this.isIOS()) {
