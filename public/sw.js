@@ -21,40 +21,62 @@ self.addEventListener('install', (event) => {
 
 // Gestione delle notifiche push
 self.addEventListener('push', (event) => {
+  console.log('Evento push ricevuto nel service worker', event);
+  
+  let notificationData = {
+    title: 'Calcio Arena',
+    message: 'Nuova notifica dalla Calcio Arena',
+    url: '/',
+    matchId: null
+  };
+  
+  // Prova a estrarre i dati dal payload
   if (event.data) {
     try {
-      const data = event.data.json();
-      const options = {
-        body: data.message || 'Nuova notifica dalla Calcio Arena',
-        icon: '/icon-192.png',
-        badge: '/favicon.ico',
-        vibrate: [100, 50, 100],
-        data: {
-          url: data.url || '/',
-          matchId: data.matchId
-        },
-        actions: [
-          {
-            action: 'open',
-            title: 'Visualizza'
-          },
-          {
-            action: 'close',
-            title: 'Chiudi'
-          }
-        ],
-        // Aggiunta per iOS/Safari
-        tag: data.matchId ? `match-${data.matchId}` : 'calcio-arena-notification',
-        renotify: true // Forza la notifica anche se esiste già una con lo stesso tag
-      };
-      
-      event.waitUntil(
-        self.registration.showNotification('Calcio Arena', options)
-      );
-    } catch (error) {
-      console.error('Errore durante l\'elaborazione della notifica push:', error);
+      // Prova a interpretare i dati come JSON
+      notificationData = {...notificationData, ...event.data.json()};
+    } catch (e) {
+      // Se non è JSON, prova a interpretare come testo
+      try {
+        const textData = event.data.text();
+        notificationData.message = textData;
+        console.log('Dati ricevuti come testo:', textData);
+      } catch (textError) {
+        console.error('Impossibile estrarre dati dalla notifica push:', textError);
+      }
     }
   }
+  
+  const options = {
+    body: notificationData.message,
+    icon: '/icon-192.png',
+    badge: '/favicon.ico',
+    vibrate: [100, 50, 100],
+    data: {
+      url: notificationData.url || '/',
+      matchId: notificationData.matchId
+    },
+    actions: [
+      {
+        action: 'open',
+        title: 'Visualizza'
+      },
+      {
+        action: 'close',
+        title: 'Chiudi'
+      }
+    ],
+    tag: notificationData.matchId ? `match-${notificationData.matchId}` : 'calcio-arena-notification',
+    renotify: true, // Forza la notifica anche se esiste già una con lo stesso tag
+    requireInteraction: true, // Mantiene la notifica visibile fino all'interazione dell'utente
+    silent: false // Assicura che la notifica emetta un suono
+  };
+  
+  console.log('Mostro notifica push:', notificationData.title, options);
+  
+  event.waitUntil(
+    self.registration.showNotification(notificationData.title, options)
+  );
 });
 
 // Gestione delle notifiche push per Safari/iOS (fallback)
@@ -67,11 +89,36 @@ self.addEventListener('message', (event) => {
       badge: '/favicon.ico',
       data: data.data || {},
       tag: data.tag || 'calcio-arena-notification',
-      renotify: true
+      renotify: data.renotify !== undefined ? data.renotify : true,
+      requireInteraction: data.requireInteraction !== undefined ? data.requireInteraction : true,
+      silent: data.silent !== undefined ? data.silent : false,
+      vibrate: [100, 50, 100]
     };
     
+    console.log('Service Worker: mostrando notifica per iOS/Safari', data.title, options);
     self.registration.showNotification(data.title || 'Calcio Arena', options);
   }
+});
+
+// Gestione specifica per iOS in PWA mode
+self.addEventListener('activate', (event) => {
+  // Richiedi il controllo immediato su tutte le pagine dell'app
+  event.waitUntil(self.clients.claim());
+  console.log('Service Worker attivato e pronto per le notifiche');
+  
+  // Registra la sottoscrizione push quando il service worker viene attivato
+  // Questo aiuta a mantenere attiva la sottoscrizione anche quando l'app è chiusa
+  self.registration.pushManager.getSubscription()
+    .then(subscription => {
+      if (!subscription) {
+        console.log('Nessuna sottoscrizione push trovata nel service worker');
+      } else {
+        console.log('Sottoscrizione push esistente trovata nel service worker');
+      }
+    })
+    .catch(error => {
+      console.error('Errore durante il controllo della sottoscrizione push:', error);
+    });
 });
 
 // Gestione del click sulle notifiche
@@ -85,7 +132,7 @@ self.addEventListener('notificationclick', (event) => {
   const urlToOpen = event.notification.data?.url || '/';
   
   event.waitUntil(
-    clients.matchAll({ type: 'window' })
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
         // Cerca una finestra già aperta dell'app
         for (const client of clientList) {
@@ -99,14 +146,40 @@ self.addEventListener('notificationclick', (event) => {
         }
         // Se non c'è una finestra aperta, aprine una nuova
         if (clients.openWindow) {
+          console.log('Apertura nuova finestra per notifica:', urlToOpen);
           return clients.openWindow(urlToOpen);
         }
       })
   );
 });
 
-// Activación del Service Worker
-self.addEventListener('activate', (event) => {
+// Gestione dell'evento pushsubscriptionchange
+self.addEventListener('pushsubscriptionchange', (event) => {
+  console.log('Sottoscrizione push cambiata, aggiornamento necessario');
+  
+  // Qui dovremmo aggiornare la sottoscrizione nel database
+  // Ma poiché non possiamo accedere direttamente a Supabase dal service worker,
+  // possiamo inviare un messaggio ai client aperti per gestire l'aggiornamento
+  event.waitUntil(
+    clients.matchAll().then(clientList => {
+      if (clientList.length > 0) {
+        // Invia un messaggio al primo client disponibile
+        clientList[0].postMessage({
+          type: 'PUSH_SUBSCRIPTION_CHANGED',
+          payload: {
+            oldSubscription: event.oldSubscription,
+            newSubscription: event.newSubscription
+          }
+        });
+      } else {
+        console.log('Nessun client disponibile per aggiornare la sottoscrizione push');
+      }
+    })
+  );
+});
+
+// Pulizia della cache durante l'attivazione
+self.addEventListener('activate', function(event) {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
