@@ -26,6 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showNotificationDialog, setShowNotificationDialog] = useState(false);
+  const [notificationUser, setNotificationUser] = useState<{userId?: string, userObject?: any}>({}); 
 
   useEffect(() => {
     // Imposta lo stato iniziale dell'autenticazione
@@ -81,6 +83,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(customUser);
         setIsAuthenticated(true);
         setIsAdmin(data.admin);
+        
+        // Trigger per mostrare il dialog delle notifiche dopo il login
+        // Aggiungiamo un piccolo ritardo per assicurarci che l'interfaccia sia completamente caricata
+        setTimeout(() => {
+          // Emetti un evento personalizzato che verrà catturato dal componente NotificationDialog
+          const event = new CustomEvent('showNotificationDialog', { 
+            detail: { userId: data.id, userObject: customUser } 
+          });
+          window.dispatchEvent(event);
+        }, 500);
         
         return { error: null };
       } else {

@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider } from "@/contexts/AuthContext";
+import NotificationDialog from "./components/NotificationDialog";
 import { PushNotificationService } from "@/services/PushNotificationService";
 import Index from "./pages/Index";
 import MatchDetails from "./pages/MatchDetails";
@@ -15,11 +16,14 @@ import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import FormationEditor from "./pages/FormationEditor";
 import "./App.css";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const queryClient = new QueryClient();
 
 function App() {
+  const [showNotificationDialog, setShowNotificationDialog] = useState(false);
+  const [notificationUser, setNotificationUser] = useState<{userId?: string, userObject?: any}>({});
+
   useEffect(() => {
     // Registrar el service worker para PWA
     if ('serviceWorker' in navigator) {
@@ -62,22 +66,8 @@ function App() {
           }
         }
         
-        // Richiedi esplicitamente il permesso per le notifiche all'avvio dell'app
-        // Questo è particolarmente importante per Safari che potrebbe non mostrare il popup automaticamente
-        if ((isSafari || isIOS) && Notification.permission !== 'granted') {
-          console.log('Richiedo permesso notifiche all\'avvio dell\'app');
-          // Aggiungiamo un piccolo ritardo per assicurarci che l'app sia completamente caricata
-          setTimeout(async () => {
-            try {
-              const hasPermission = await PushNotificationService.requestNotificationPermission(userId, userObject);
-              console.log('Permesso notifiche ottenuto all\'avvio:', hasPermission);
-            } catch (permError) {
-              console.error('Errore durante la richiesta permesso notifiche:', permError);
-            }
-          }, 1000);
-        }
-        
-        // Inizializza il servizio di notifiche push
+        // Inizializza il servizio di notifiche push senza richiedere permessi
+        // (i permessi verranno richiesti tramite il dialog dedicato)
         await PushNotificationService.initialize(userId, userObject);
       } catch (error) {
         console.error('Errore durante l\'inizializzazione delle notifiche push:', error);
@@ -85,6 +75,21 @@ function App() {
     };
     
     initPushNotifications();
+
+    // Listener per l'evento di login che mostra il dialog delle notifiche
+    const handleShowNotificationDialog = (event: CustomEvent) => {
+      const { userId, userObject } = event.detail;
+      setNotificationUser({ userId, userObject });
+      setShowNotificationDialog(true);
+    };
+
+    // Registra il listener per l'evento personalizzato
+    window.addEventListener('showNotificationDialog', handleShowNotificationDialog as EventListener);
+
+    // Cleanup del listener quando il componente viene smontato
+    return () => {
+      window.removeEventListener('showNotificationDialog', handleShowNotificationDialog as EventListener);
+    };
   }, []);
 
   return (
@@ -107,6 +112,13 @@ function App() {
             <Toaster />
             <Sonner />
           </Router>
+          {showNotificationDialog && (
+            <NotificationDialog 
+              userId={notificationUser.userId} 
+              userObject={notificationUser.userObject} 
+              onClose={() => setShowNotificationDialog(false)}
+            />
+          )}
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

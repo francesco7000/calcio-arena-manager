@@ -402,7 +402,6 @@ export const PushNotificationService = {
         }
       }
       
-      //console.log(navigator.userAgent);
       console.log('Aggiornamento subscription per utente:', userId);
       
       // Aggiorna la subscription nel database Supabase
