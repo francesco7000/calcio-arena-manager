@@ -57,12 +57,12 @@ export const NotificationService = {
       
       if (pushSupported && hasPermission) {
         try {
-          // Invia una notifica push locale
+          /* Invia una notifica push locale
           await PushNotificationService.sendLocalNotification('Calcio Arena', {
             body: message,
             icon: '/icon-192.png',
             badge: '/favicon.ico',
-            vibrate: [100, 50, 100],
+            //vibrate: [100, 50, 100],
             data: {
               url: `/match/${matchId}`,
               matchId: matchId
@@ -71,6 +71,7 @@ export const NotificationService = {
             requireInteraction: true, // Mantiene la notifica visibile fino all'interazione dell'utente
             silent: false // Assicura che la notifica emetta un suono
           });
+          */
           
           // Invia anche una notifica push tramite il server (per quando l'app è chiusa)
           await this.sendServerPushNotification(nonGuestParticipants.map(p => p.user_id), {
@@ -297,10 +298,7 @@ export const NotificationService = {
       }
 
       console.log('Cerco sottoscrizioni push per gli UUID:', userUUIDs);
-      const { data: subscriptions, error } = await supabase
-        .from('push_subscriptions')
-        .select('subscription')
-        .in('user_id', userUUIDs);
+      const { data: subscriptions, error } = await supabase.from('push_subscriptions').select('subscription').in('user_id', userUUIDs);
 
       if (error) {
         console.error('Errore durante il recupero delle sottoscrizioni push:', error);

@@ -47,6 +47,21 @@ function App() {
         
         console.log('Ambiente app:', { isSafari, isIOS, isPWA });
         
+        // Ottieni l'utente dal localStorage
+        const storedUser = localStorage.getItem('user');
+        let userId = null;
+        let userObject = null;
+        
+        if (storedUser) {
+          try {
+            userObject = JSON.parse(storedUser);
+            userId = userObject.id;
+            console.log('Utente recuperato per notifiche:', userId);
+          } catch (error) {
+            console.error('Errore nel parsing dell\'utente dal localStorage:', error);
+          }
+        }
+        
         // Richiedi esplicitamente il permesso per le notifiche all'avvio dell'app
         // Questo è particolarmente importante per Safari che potrebbe non mostrare il popup automaticamente
         if ((isSafari || isIOS) && Notification.permission !== 'granted') {
@@ -54,7 +69,7 @@ function App() {
           // Aggiungiamo un piccolo ritardo per assicurarci che l'app sia completamente caricata
           setTimeout(async () => {
             try {
-              const hasPermission = await PushNotificationService.requestNotificationPermission();
+              const hasPermission = await PushNotificationService.requestNotificationPermission(userId, userObject);
               console.log('Permesso notifiche ottenuto all\'avvio:', hasPermission);
             } catch (permError) {
               console.error('Errore durante la richiesta permesso notifiche:', permError);
@@ -63,7 +78,7 @@ function App() {
         }
         
         // Inizializza il servizio di notifiche push
-        await PushNotificationService.initialize();
+        await PushNotificationService.initialize(userId, userObject);
       } catch (error) {
         console.error('Errore durante l\'inizializzazione delle notifiche push:', error);
       }

@@ -72,8 +72,10 @@ export const PushNotificationService = {
 
   /**
    * Richiede il permesso per le notifiche push
+   * @param userId ID dell'utente da utilizzare per la sottoscrizione (opzionale)
+   * @param userObject Oggetto utente completo (opzionale, alternativo a userId)
    */
-  async requestNotificationPermission() {
+  async requestNotificationPermission(userId?: string, userObject?: any) {
     if (!('Notification' in window)) {
       console.log('Questo browser non supporta le notifiche desktop');
       return false;
@@ -97,7 +99,7 @@ export const PushNotificationService = {
           // Registra il dispositivo nel database anche se Web Push non è supportato
           try {
             // Tenta di registrare il dispositivo nel database
-            await this.subscribeUserToPush();
+            await this.subscribeUserToPush(userId, userObject);
             console.log('Dispositivo iOS registrato dopo concessione permesso');
           } catch (regError) {
             console.error('Errore durante la registrazione del dispositivo iOS:', regError);
@@ -120,7 +122,7 @@ export const PushNotificationService = {
         // Se il permesso è stato concesso, registra la sottoscrizione
         if (permission === 'granted') {
           try {
-            await this.subscribeUserToPush();
+            await this.subscribeUserToPush(userId, userObject);
           } catch (regError) {
             console.error('Errore durante la registrazione della sottoscrizione:', regError);
           }
@@ -249,8 +251,10 @@ export const PushNotificationService = {
 
   /**
    * Inizializza il sistema di notifiche push
+   * @param userId ID dell'utente da utilizzare per la sottoscrizione (opzionale)
+   * @param userObject Oggetto utente completo (opzionale, alternativo a userId)
    */
-  async initialize() {
+  async initialize(userId?: string, userObject?: any) {
     // Registra il service worker indipendentemente dal browser
     const registration = await this.registerServiceWorker();
     
@@ -271,7 +275,7 @@ export const PushNotificationService = {
       // Questo è importante per iOS dove Web Push potrebbe non essere supportato
       try {
         console.log('Tentativo di registrazione dispositivo iOS nel database...');
-        await this.subscribeUserToPush();
+        await this.subscribeUserToPush(userId, userObject);
       } catch (regError) {
         console.error('Errore durante la registrazione iniziale del dispositivo iOS:', regError);
         // Continuiamo comunque con l'inizializzazione
@@ -281,7 +285,7 @@ export const PushNotificationService = {
       // Questo è fondamentale per Safari che potrebbe non mostrare il popup automaticamente
       if (currentPermission !== 'granted' && savedPermission !== 'granted') {
         console.log('Richiedo permesso notifiche per Safari/iOS');
-        const hasPermission = await this.requestNotificationPermission();
+        const hasPermission = await this.requestNotificationPermission(userId, userObject);
         console.log('Permesso notifiche ottenuto:', hasPermission);
         if (!hasPermission) return false;
       }
@@ -291,16 +295,9 @@ export const PushNotificationService = {
       if (registration) {
         try {
           // Prova a sottoscrivere l'utente alle notifiche push
-          await this.subscribeUserToPush();
+          await this.subscribeUserToPush(userId, userObject);
           
-          // Invia una notifica di test per verificare la configurazione
-          setTimeout(() => {
-            this.sendLocalNotification('Calcio Arena', {
-              body: 'Notifiche attivate con successo!',
-              icon: '/icon-192.png',
-              tag: 'test-notification'
-            });
-          }, 2000);
+
         } catch (error) {
           console.log('Errore durante la configurazione delle notifiche:', error);
           // Continuiamo comunque perché possiamo usare le notifiche base
@@ -317,7 +314,7 @@ export const PushNotificationService = {
     const currentPermission = Notification.permission;
     if (currentPermission !== 'granted') {
       console.log('Richiedo permesso notifiche per browser standard');
-      const hasPermission = await this.requestNotificationPermission();
+      const hasPermission = await this.requestNotificationPermission(userId, userObject);
       if (!hasPermission) return false;
     }
 
@@ -335,55 +332,84 @@ export const PushNotificationService = {
         
         // Aggiorna la sottoscrizione nel database
         if (event.data.payload.newSubscription) {
-          this.updatePushSubscriptionInDatabase(event.data.payload.newSubscription);
+          this.updatePushSubscriptionInDatabase(event.data.payload.newSubscription, userId, userObject);
         }
       }
     });
 
     // Sottoscrivi l'utente alle notifiche push
-    await this.subscribeUserToPush();
+    await this.subscribeUserToPush(userId, userObject);
 
     return true;
   },
 
   /**
-   * Sottoscrive l'utente alle notifiche push Web Push (VAPID)
-   * e salva la subscription nel database Supabase
-   */
-  /**
    * Aggiorna la sottoscrizione push nel database
    * @param subscription La nuova sottoscrizione push
+   * @param userId ID dell'utente da utilizzare per la sottoscrizione (opzionale)
+   * @param userObject Oggetto utente completo (opzionale, alternativo a userId)
    */
-  async updatePushSubscriptionInDatabase(subscription: PushSubscription | null) {
+  async updatePushSubscriptionInDatabase(subscription: PushSubscription | null, userId?: string, userObject?: any) {
     try {
-      // Ottieni l'utente corrente da Supabase
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        console.error('Utente non autenticato, impossibile aggiornare la subscription');
-        return false;
+      // Se è stato fornito direttamente l'ID utente, utilizziamo quello
+      if (userId) {
+        console.log('Utilizzando ID utente fornito:', userId);
+      } 
+      // Se è stato fornito l'oggetto utente, utilizziamo il suo ID
+      else if (userObject && userObject.id) {
+        userId = userObject.id;
+        console.log('Utilizzando ID da oggetto utente fornito:', userId);
+      }
+      // Altrimenti, tentiamo di recuperare l'utente dal localStorage
+      else {
+        const storedUser = localStorage.getItem('user');
+        
+        if (storedUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            console.log('Utente recuperato dal localStorage:', parsedUser);
+            userId = parsedUser.id;
+          } catch (error) {
+            console.error('Errore nel parsing dell\'utente dal localStorage:', error);
+          }
+        }
+        
+        // Se non abbiamo trovato l'utente nel localStorage, proviamo con Supabase
+        if (!userId) {
+          console.log('Tentativo di ottenere l\'utente corrente da Supabase...');
+          const { data: { session } } = await supabase.auth.getSession();
+          console.log('Sessione corrente:', session);
+          
+          if (!session || !session.user) {
+            console.error('Utente non autenticato, impossibile salvare la subscription');
+            return null;
+          }
+          
+          // Ottieni l'ID UUID dell'utente dalla tabella users
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('username', session.user.email || session.user.id)
+            .single();
+          
+          if (userError || !userData) {
+            console.error('Errore durante il recupero dell\'ID utente:', userError);
+            console.log('Username cercato:', session.user.email || session.user.id);
+            return false;
+          }
+          
+          userId = userData.id;
+        }
       }
       
-      // Ottieni l'ID UUID dell'utente dalla tabella users
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('username', user.email || user.id)
-        .single();
-      
-      if (userError || !userData) {
-        console.error('Errore durante il recupero dell\'ID utente:', userError);
-        console.log('Username cercato:', user.email || user.id);
-        return false;
-      }
-      
-      console.log('Aggiornamento subscription per utente:', userData.id);
+      //console.log(navigator.userAgent);
+      console.log('Aggiornamento subscription per utente:', userId);
       
       // Aggiorna la subscription nel database Supabase
       const { error } = await supabase
         .from('push_subscriptions')
         .upsert({
-          user_id: userData.id, // Usa l'ID UUID dalla tabella users
+          user_id: userId, // Usa l'ID UUID dalla tabella users o dal localStorage
           subscription: subscription ? JSON.stringify(subscription) : null,
           device_info: {
             is_safari: this.isSafari(),
@@ -396,10 +422,11 @@ export const PushNotificationService = {
       
       if (error) {
         console.log('Dettagli errore:', error);
+        // Aggiungi log dettagliati per tracciare il flusso di esecuzione e identificare eventuali errori durante il processo di salvataggio
         console.error('Errore durante l\'aggiornamento della subscription:', error);
         return false;
       } else {
-        console.log('Subscription aggiornata con successo per l\'utente:', userData.id);
+        console.log('Subscription aggiornata con successo per l\'utente:', userId);
         return true;
       }
     } catch (error) {
@@ -409,7 +436,13 @@ export const PushNotificationService = {
     }
   },
   
-  async subscribeUserToPush() {
+  /**
+   * Sottoscrive l'utente alle notifiche push Web Push (VAPID)
+   * e salva la subscription nel database Supabase
+   * @param userId ID dell'utente da utilizzare per la sottoscrizione (opzionale)
+   * @param userObject Oggetto utente completo (opzionale, alternativo a userId)
+   */
+  async subscribeUserToPush(userId?: string, userObject?: any) {
     // Per iOS/Safari, controlliamo se siamo in una PWA
     if (this.isIOS() && this.isPWA()) {
       console.log('Dispositivo iOS in modalità PWA, tentativo di registrazione push...');
@@ -419,27 +452,67 @@ export const PushNotificationService = {
     const isWebPushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
     console.log('Web Push supportato:', isWebPushSupported);
     
-    // Ottieni l'utente corrente da Supabase anche se Web Push non è supportato
-    // per poter comunque registrare il dispositivo nel database
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error('Utente non autenticato, impossibile salvare la subscription');
-      return null;
+    // Se è stato fornito direttamente l'ID utente o l'oggetto utente, utilizziamo quello
+    if (userId) {
+      console.log('Utilizzando ID utente fornito:', userId);
+      const userData = { id: userId };
+      return this.continueSubscription(userData, isWebPushSupported);
+    } else if (userObject && userObject.id) {
+      console.log('Utilizzando oggetto utente fornito:', userObject.id);
+      const userData = { id: userObject.id };
+      return this.continueSubscription(userData, isWebPushSupported);
     }
     
-    // Ottieni l'ID UUID dell'utente dalla tabella users
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', user.email || user.id)
-      .single();
+    // Altrimenti, tentiamo di recuperare l'utente dal localStorage
+    const storedUser = localStorage.getItem('user');
+    console.log('Utente memorizzato nel localStorage:', storedUser);
     
-    if (userError || !userData) {
-      console.error('Errore durante il recupero dell\'ID utente:', userError);
-      console.log('Username cercato:', user.email || user.id);
-      return null;
+    if (!storedUser) {
+      // Prova comunque a ottenere la sessione da Supabase come fallback
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Sessione Supabase (fallback):', session);
+      
+      if (!session || !session.user) {
+        console.error('Utente non autenticato, impossibile salvare la subscription');
+        return null;
+      }
+      
+      // Ottieni l'ID UUID dell'utente dalla tabella users usando la sessione Supabase
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', session.user.email || session.user.id)
+        .single();
+      
+      if (userError || !userData) {
+        console.error('Errore durante il recupero dell\'ID utente:', userError);
+        console.log('Username cercato:', session.user.email || session.user.id);
+        return null;
+      }
+      
+      return this.continueSubscription(userData, isWebPushSupported);
+    } else {
+      // Usa l'utente dal localStorage
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        console.log('Utente recuperato dal localStorage:', parsedUser);
+        
+        // L'ID è già disponibile nel localStorage, non serve fare query
+        const userData = { id: parsedUser.id };
+        return this.continueSubscription(userData, isWebPushSupported);
+      } catch (error) {
+        console.error('Errore nel parsing dell\'utente dal localStorage:', error);
+        return null;
+      }
     }
-    
+  },
+  
+  /**
+   * Continua il processo di sottoscrizione dopo aver ottenuto l'utente
+   * @param userData Dati dell'utente con ID
+   * @param isWebPushSupported Se Web Push è supportato
+   */
+  async continueSubscription(userData, isWebPushSupported) {
     console.log('ID utente trovato:', userData.id);
     
     // Se Web Push non è supportato (come su Safari iOS non-PWA),
@@ -472,6 +545,7 @@ export const PushNotificationService = {
       
       return null;
     }
+    
     try {
       const registration = await navigator.serviceWorker.ready;
       // Chiave pubblica VAPID fornita dall'utente
@@ -496,7 +570,6 @@ export const PushNotificationService = {
       } else {
         console.log('Sottoscrizione push esistente trovata:', subscription);
       }
-      // L'utente e userData sono già stati recuperati all'inizio del metodo
       // Salva la subscription nel database Supabase
       const { error } = await supabase
         .from('push_subscriptions')
@@ -542,5 +615,5 @@ export const PushNotificationService = {
       outputArray[i] = rawData.charCodeAt(i);
     }
     return outputArray;
-  },
+  }
 };
