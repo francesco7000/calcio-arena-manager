@@ -142,32 +142,6 @@ const NotificationCenter = () => {
 
   return (
     <>
-      {showPermissionAlert && (
-        <Alert variant="destructive" className="mb-4 fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md shadow-lg">
-          <BellRing className="h-4 w-4" />
-          <AlertTitle>{notificationPermission === 'denied' ? "Notifiche disabilitate" : "Attiva le notifiche"}</AlertTitle>
-          <AlertDescription>
-            {notificationPermission === 'denied' ? (
-              <p className="mb-2">
-                {PushNotificationService.isIOS() ? 
-                  "Per ricevere notifiche su iPhone, devi attivarle nelle impostazioni di Safari. Vai su Impostazioni > Safari > Notifiche e attiva le notifiche per questo sito." : 
-                  "Hai disabilitato le notifiche per questa app. Per riceverle, attivale nelle impostazioni del browser."}
-              </p>
-            ) : (
-              <p className="mb-2">Clicca il pulsante sotto per ricevere notifiche in tempo reale sulle partite e gli aggiornamenti.</p>
-            )}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={requestNotificationPermission}
-              className="mt-1"
-            >
-              Attiva notifiche
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-      
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button variant="ghost" size="icon" className="relative">

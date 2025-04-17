@@ -88,7 +88,6 @@ const FormationEditor = () => {
             ? JSON.parse(formationData.positions) 
             : formationData.positions;
             
-            console.log('Posizioni recuperate:', positions);
           setPlayerPositions(positions);
           
         } catch (parseError) {
@@ -119,7 +118,6 @@ const FormationEditor = () => {
 
   // Handle position changes
   const handlePositionChange = (participantId: string, x: number, y: number) => {
-    console.log(`Posizione di ${participantId} cambiata a x: ${x}, y: ${y}`);
     if (!match?.participants.find(p => p.id === participantId)) return;
     
     setPlayerPositions(prev => {
@@ -135,8 +133,7 @@ const FormationEditor = () => {
   };
 
   const saveFormation = async () => {
-    console.log("Salvataggio della formazione...");
-    console.log("Posizioni attuali:", playerPositions);
+
     if (!matchId || !hasChanges) return;
     
     setSaving(true);

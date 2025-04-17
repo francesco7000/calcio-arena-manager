@@ -94,7 +94,6 @@ const MatchDetails = () => {
               ? JSON.parse(formationData.positions) 
               : formationData.positions;
               
-              console.log('Posizioni recuperate:', positions);
             setPlayerPositions(positions);
             
           } catch (parseError) {

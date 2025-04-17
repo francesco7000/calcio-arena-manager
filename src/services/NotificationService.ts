@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { createClient } from '@supabase/supabase-js'
+
 
 export interface Notification {
   id: string;
@@ -9,6 +11,9 @@ export interface Notification {
   is_read: boolean | null;
   message: string | null;
 }
+
+// Remove the redefinition of supabase
+// const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 /**
  * Servizio per la gestione delle notifiche
@@ -77,7 +82,7 @@ export const NotificationService = {
           await this.sendServerPushNotification(nonGuestParticipants.map(p => p.user_id), {
             title: 'Calcio Arena',
             message: message,
-            url: `/match/${matchId}`,
+            //url: `/match/${matchId}`,
             matchId: matchId
           });
         } catch (error) {
@@ -187,8 +192,6 @@ export const NotificationService = {
         return { success: false, error: { message: "Non è possibile inviare notifiche agli utenti ospiti" } };
       }
 
-      console.log('Invio notifica al singolo utente:', userId);
-
       // Crea la notifica
       const notification = {
         match_id: matchId,
@@ -216,7 +219,7 @@ export const NotificationService = {
         await this.sendServerPushNotification([userId], {
           title: 'Calcio Arena',
           message: message,
-          url: `/match/${matchId}`,
+          //url: `/match/${matchId}`,
           matchId: matchId
         });
       } catch (pushError) {
@@ -237,116 +240,81 @@ export const NotificationService = {
    * @param userIds Array di ID utenti a cui inviare la notifica
    * @param notificationData Dati della notifica
    */
+
   async sendServerPushNotification(userIds: string[], notificationData: { title: string, message: string, url?: string, matchId?: string }) {
     try {
       if (!userIds || userIds.length === 0) {
-        console.log('Nessun utente a cui inviare notifiche push');
         return { success: true, message: 'Nessun utente a cui inviare notifiche push' };
       }
-
-      console.log('Invio notifiche push agli utenti:', userIds);
       
-      // Verifica se gli userIds sono già UUID o sono username
-      console.log('Tipo di userIds ricevuti:', userIds);
-      
-      let userUUIDs: string[] = [];
-      
-      // Verifica se gli ID passati sono già UUID o sono username
-      // Se iniziano con 'guest-' li saltiamo, se sono UUID li usiamo direttamente
-      // altrimenti cerchiamo di recuperare gli UUID dalla tabella users
       const nonGuestUserIds = userIds.filter(id => !id.startsWith('guest-'));
       
-      // Se non ci sono utenti non guest, restituisci successo senza fare nulla
       if (nonGuestUserIds.length === 0) {
-        console.log('Nessun utente non guest a cui inviare notifiche push');
         return { success: true, message: 'Nessun utente non guest a cui inviare notifiche push' };
       }
       
-      // Verifica se gli ID sembrano essere UUID (36 caratteri con trattini)
-      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const areUUIDs = nonGuestUserIds.every(id => uuidPattern.test(id));
-      
-      if (areUUIDs) {
-        // Se sono già UUID, li usiamo direttamente
-        console.log('Gli ID utenti sono già UUID, li uso direttamente');
-        userUUIDs = nonGuestUserIds;
-      } else {
-        // Altrimenti, cerchiamo di recuperare gli UUID dalla tabella users usando gli username
-        console.log('Gli ID utenti sembrano essere username, cerco gli UUID corrispondenti');
-        const { data: usersData, error: usersError } = await supabase
-          .from('users')
-          .select('id')
-          .in('username', nonGuestUserIds);
-        
-        if (usersError || !usersData || usersData.length === 0) {
-          console.error('Errore durante il recupero degli ID utenti:', usersError);
-          return { success: false, error: usersError || { message: 'Nessun utente trovato' } };
-        }
-        
-        userUUIDs = usersData.map(user => user.id);
-      }
-      
-      console.log('UUID utenti da notificare:', userUUIDs);
-      
-      // Log degli UUID trovati
-      console.log('UUID utenti trovati:', userUUIDs);
-      
-      // Ottieni le sottoscrizioni push per gli utenti specificati usando gli UUID
-      if (userUUIDs.length === 0) {
-        console.log('Nessun UUID utente valido trovato per le sottoscrizioni push');
-        return { success: true, message: 'Nessun UUID utente valido trovato' };
-      }
 
-      console.log('Cerco sottoscrizioni push per gli UUID:', userUUIDs);
-      const { data: subscriptions, error } = await supabase.from('push_subscriptions').select('subscription').in('user_id', userUUIDs);
+      const subscriptions = await this.getPushSubscriptionsByUserIds(nonGuestUserIds);
+
+      if (subscriptions.length === 0) {
+        return { success: true, message: 'Nessuna subscription valida' };
+      }
+    
+
+
+      const testData = { subscriptions:  subscriptions.map(s => s.subscription) , notification: notificationData};
+
+      const body = JSON.stringify(testData);
+      
+      // Get your Supabase URL and anon key from your project settings
+      const SUPABASE_URL = 'https://hancogrsqrajdxmontft.supabase.co';
+      const SUPABASE_ANON_KEY = 'c35240a19eb0e33d874587d6f8b9d21775899297e5eec76531b5bc562a5a65eb';
+      
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/send-push-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Length': body.length.toString()
+        },
+        body: body
+      });
+      
+      const data = await response.json();
 
       if (error) {
-        console.error('Errore durante il recupero delle sottoscrizioni push:', error);
+        console.error('Errore durante l\'invio delle notifiche push:', error);
         return { success: false, error };
       }
 
-      if (!subscriptions || subscriptions.length === 0) {
-        console.log('Nessuna sottoscrizione push trovata per gli utenti specificati');
-        return { success: true, message: 'Nessuna sottoscrizione push trovata' };
-      }
-
-      console.log(`Trovate ${subscriptions.length} sottoscrizioni push da notificare`);
-
-      // Invia la notifica push a tutte le sottoscrizioni trovate
-      // Nota: in un'implementazione reale, questa parte dovrebbe essere gestita dal backend
-      // Qui simuliamo l'invio tramite il service worker
-      const { PushNotificationService } = await import('./PushNotificationService');
-      
-      // Verifica se il service worker è registrato
-      if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.ready;
-        
-        // Invia un messaggio al service worker per simulare una notifica push
-        registration.active?.postMessage({
-          type: 'PUSH_NOTIFICATION',
-          payload: {
-            title: notificationData.title,
-            body: notificationData.message,
-            icon: '/icon-192.png',
-            badge: '/favicon.ico',
-            data: {
-              url: notificationData.url || '/',
-              matchId: notificationData.matchId
-            },
-            tag: notificationData.matchId ? `match-${notificationData.matchId}` : 'calcio-arena-notification',
-            renotify: true,
-            requireInteraction: true,
-            silent: false
-          }
-        });
-        
-        console.log('Notifica push inviata tramite service worker');
-      }
-      
-      return { success: true, message: `Notifiche push inviate a ${subscriptions.length} dispositivi` };
+      return { success: true, data };
     } catch (error) {
       console.error('Errore durante l\'invio delle notifiche push dal server:', error);
       return { success: false, error };
     }
+  },
+
+  /**
+ * Recupera le push subscription dal database per una lista di userId
+ * @param userIds Lista di ID utente
+ */
+async  getPushSubscriptionsByUserIds(userIds: string[]) {
+  if (!userIds || userIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('push_subscriptions')
+    .select('subscription, user_id')
+    .in('user_id', userIds)
+    .not('subscription', 'is', null); // Evita risultati nulli
+
+  if (error) {
+    console.error('Errore nel recupero delle subscription:', error);
+    return [];
   }
+
+  // Filtra eventuali righe senza subscription valida
+  return (data || []).filter(entry => entry.subscription);
+}
+
+
 };

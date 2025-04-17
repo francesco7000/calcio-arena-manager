@@ -92,7 +92,6 @@ const FootballField: React.FC<FootballFieldProps> = ({
   const validatePositionAndSend = (playerId: string, x: number, y: number) => {
         const validX = Math.max(0, Math.min(fieldSize.width, x));
         const validY = Math.max(0, Math.min(fieldSize.height, y));
-        console.log(`Valid position for player ${playerId}: x=${validX}, y=${validY}`);
         onPositionChange(playerId, validX, validY);
   }
   

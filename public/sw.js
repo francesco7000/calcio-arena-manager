@@ -21,7 +21,6 @@ self.addEventListener('install', (event) => {
 
 // Gestione delle notifiche push
 self.addEventListener('push', (event) => {
-  console.log('Evento push ricevuto nel service worker', event);
   
   let notificationData = {
     title: 'Calcio Arena',
@@ -40,7 +39,6 @@ self.addEventListener('push', (event) => {
       try {
         const textData = event.data.text();
         notificationData.message = textData;
-        console.log('Dati ricevuti come testo:', textData);
       } catch (textError) {
         console.error('Impossibile estrarre dati dalla notifica push:', textError);
       }
@@ -72,7 +70,6 @@ self.addEventListener('push', (event) => {
     silent: false // Assicura che la notifica emetta un suono
   };
   
-  console.log('Mostro notifica push:', notificationData.title, options);
   
   event.waitUntil(
     self.registration.showNotification(notificationData.title, options)
@@ -95,7 +92,6 @@ self.addEventListener('message', (event) => {
       vibrate: [100, 50, 100]
     };
     
-    console.log('Service Worker: mostrando notifica per iOS/Safari', data.title, options);
     self.registration.showNotification(data.title || 'Calcio Arena', options);
   }
 });
@@ -104,16 +100,15 @@ self.addEventListener('message', (event) => {
 self.addEventListener('activate', (event) => {
   // Richiedi il controllo immediato su tutte le pagine dell'app
   event.waitUntil(self.clients.claim());
-  console.log('Service Worker attivato e pronto per le notifiche');
   
   // Registra la sottoscrizione push quando il service worker viene attivato
   // Questo aiuta a mantenere attiva la sottoscrizione anche quando l'app è chiusa
   self.registration.pushManager.getSubscription()
     .then(subscription => {
       if (!subscription) {
-        console.log('Nessuna sottoscrizione push trovata nel service worker');
+        //console.log('Nessuna sottoscrizione push trovata nel service worker');
       } else {
-        console.log('Sottoscrizione push esistente trovata nel service worker');
+        //console.log('Sottoscrizione push esistente trovata nel service worker');
       }
     })
     .catch(error => {
@@ -146,7 +141,6 @@ self.addEventListener('notificationclick', (event) => {
         }
         // Se non c'è una finestra aperta, aprine una nuova
         if (clients.openWindow) {
-          console.log('Apertura nuova finestra per notifica:', urlToOpen);
           return clients.openWindow(urlToOpen);
         }
       })
@@ -155,7 +149,6 @@ self.addEventListener('notificationclick', (event) => {
 
 // Gestione dell'evento pushsubscriptionchange
 self.addEventListener('pushsubscriptionchange', (event) => {
-  console.log('Sottoscrizione push cambiata, aggiornamento necessario');
   
   // Qui dovremmo aggiornare la sottoscrizione nel database
   // Ma poiché non possiamo accedere direttamente a Supabase dal service worker,
@@ -172,7 +165,7 @@ self.addEventListener('pushsubscriptionchange', (event) => {
           }
         });
       } else {
-        console.log('Nessun client disponibile per aggiornare la sottoscrizione push');
+        //console.log('Nessun client disponibile per aggiornare la sottoscrizione push');
       }
     })
   );

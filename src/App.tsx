@@ -29,9 +29,8 @@ function App() {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('/sw.js').then(function(registration) {
-          console.log('ServiceWorker registration successful with scope: ', registration.scope);
         }, function(err) {
-          console.log('ServiceWorker registration failed: ', err);
+          console.error('ServiceWorker registration failed: ', err);
         });
       });
     }
@@ -49,7 +48,6 @@ function App() {
         const isIOS = PushNotificationService.isIOS();
         const isPWA = PushNotificationService.isPWA();
         
-        console.log('Ambiente app:', { isSafari, isIOS, isPWA });
         
         // Ottieni l'utente dal localStorage
         const storedUser = localStorage.getItem('user');
@@ -60,7 +58,6 @@ function App() {
           try {
             userObject = JSON.parse(storedUser);
             userId = userObject.id;
-            console.log('Utente recuperato per notifiche:', userId);
           } catch (error) {
             console.error('Errore nel parsing dell\'utente dal localStorage:', error);
           }
