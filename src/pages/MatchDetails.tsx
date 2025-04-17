@@ -118,7 +118,6 @@ const MatchDetails = () => {
     }, [id, toast]);
   
     useEffect(() => {
-      console.log(id);
       if (id) {
         fetchMatch();
       }
