@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, LogIn, Calendar, Plus } from "lucide-react";
+import { ArrowLeft, LogIn, Calendar, Plus, Users, UserPlus } from "lucide-react";
 import Header from "@/components/Header";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -131,11 +131,49 @@ const Admin = () => {
                     <p className="text-gray-500 mb-4 text-center">
                       Crea una nuova partita specificando data, ora, luogo e altre informazioni.
                     </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button 
+                        onClick={() => navigate('/create-match')} 
+                        className="w-full"
+                      >
+                        Crea partita
+                      </Button>
+                      <Button 
+                        onClick={() => navigate('/admin-users')} 
+                        className="w-full"
+                        variant="outline"
+                      >
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Crea utente
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+              
+              <motion.div
+                whileHover={{ y: -5 }}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              >
+                <Card className="border-none shadow-lg h-full">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-primary" />
+                      Gestione Utenti
+                    </CardTitle>
+                    <CardDescription>
+                      Crea e gestisci gli utenti dell'applicazione
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center justify-center pt-4">
+                    <p className="text-gray-500 mb-4 text-center">
+                      Crea nuovi utenti, assegna ruoli di amministratore e gestisci gli account esistenti.
+                    </p>
                     <Button 
-                      onClick={() => navigate('/create-match')} 
+                      onClick={() => navigate('/admin-users')} 
                       className="w-full"
                     >
-                      Crea partita
+                      Gestisci utenti
                     </Button>
                   </CardContent>
                 </Card>

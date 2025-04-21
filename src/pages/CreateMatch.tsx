@@ -56,7 +56,7 @@ const CreateMatch = () => {
     try {
       const newMatch = {
         field: field,
-        location: location,
+        location: "default location",
         address: address,
         date: date,
         time: time,
@@ -125,18 +125,6 @@ const CreateMatch = () => {
                       value={field}
                       onChange={(e) => setField(e.target.value)}
                       placeholder="Nome del campo"
-                      required
-                      className="h-12 text-base"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="location" className="text-base mb-1.5 block">Luogo</Label>
-                    <Input
-                      type="text"
-                      id="location"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder="Città"
                       required
                       className="h-12 text-base"
                     />

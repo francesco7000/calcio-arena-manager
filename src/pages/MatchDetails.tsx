@@ -1,7 +1,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { MapPin, Users, Calendar, Clock, Euro, ArrowLeft, User, MapPinned, Bell, AlertTriangle } from "lucide-react";
+import { MapPin, Users, Calendar, Clock, Euro, ArrowLeft, User, MapPinned, Bell, AlertTriangle, Edit } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import FootballField from "@/components/FootballField";
 import Header from "@/components/Header";
 import ParticipantsList from "@/components/ParticipantsList";
 import MatchActions from "@/components/MatchActions";
+import EditMatchDialog from "@/components/EditMatchDialog";
 import { Match, Participant } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -45,6 +46,7 @@ const MatchDetails = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const isMobile = useIsMobile();
   const [playerPositions, setPlayerPositions] = useState<{ [key: string]: { x: number, y: number } }>({});
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   
 
@@ -359,7 +361,9 @@ const MatchDetails = () => {
     return new Date(dateString).toLocaleDateString('it-IT', options);
   };
   
-  const isGoalkeeperMissing = match && !match.participants.some(p => p.position === 'POR');
+  const goalkeepersCount = match && match.participants.filter(p => p.position === 'POR').length;
+  const isGoalkeeperMissing = goalkeepersCount < 2;
+  const missingGoalkeepersCount = 2 - goalkeepersCount;
 
   if (loading) {
     return (
@@ -416,9 +420,11 @@ const MatchDetails = () => {
             transition={{ duration: 0.4, delay: 0.1 }}
           >
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                {match.field}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  {match.field}
+                </h2>
+              </div>
               <Badge 
                 variant={isFull ? "secondary" : "outline"}
                 className={isFull 
@@ -447,7 +453,20 @@ const MatchDetails = () => {
               <CardContent className="p-0">
                 <div className="p-6 bg-white">
                   <div className="space-y-5">
-                    <h3 className="font-medium text-lg mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Dettagli della partita</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-lg mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Dettagli della partita</h3>
+                      {isAdmin && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8" 
+                          onClick={() => setShowEditDialog(true)}
+                          title="Modifica partita"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <motion.div 
@@ -484,23 +503,11 @@ const MatchDetails = () => {
                           <MapPin className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="text-sm text-muted-foreground">Luogo</p>
-                          <p className="font-medium">{match.location}</p>
-                        </div>
-                      </motion.div>
-                      
-                      <motion.div 
-                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
-                        whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                      >
-                        <div className="bg-primary/10 p-2 rounded-full">
-                          <MapPinned className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
                           <p className="text-sm text-muted-foreground">Indirizzo</p>
-                          <p className="font-medium">Via del Campo 123, Milano</p>
+                          <p className="font-medium">{match.address}</p>
                         </div>
                       </motion.div>
+                    
                       
                       <motion.div 
                         className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg shadow-sm"
@@ -533,8 +540,8 @@ const MatchDetails = () => {
                       <Alert variant="destructive" className="mt-4 bg-orange-50 border-orange-200 text-orange-700">
                         <AlertDescription className="text-sm font-medium flex items-center">
                           <AlertTriangle className="h-4 w-4 mr-2" />
-                          <span>Attenzione: manca un portiere per questa partita!</span>
-                        </AlertDescription>
+                          <span>Manca{missingGoalkeepersCount > 1 ? 'no' : ''} {missingGoalkeepersCount} portier{missingGoalkeepersCount > 1 ? 'i' : 'e'}!</span>
+                          </AlertDescription>
                       </Alert>
                     )}
                     
@@ -668,6 +675,16 @@ const MatchDetails = () => {
                 
           </motion.div>
         </div>
+        
+        {/* Dialog per la modifica della partita (solo admin) */}
+        {match && (
+          <EditMatchDialog 
+            match={match} 
+            open={showEditDialog} 
+            onOpenChange={setShowEditDialog} 
+            onMatchUpdated={fetchMatch} 
+          />
+        )}
       </main>
     </div>
   );

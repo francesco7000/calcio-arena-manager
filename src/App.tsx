@@ -15,6 +15,7 @@ import CreateMatch from "./pages/CreateMatch";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import FormationEditor from "./pages/FormationEditor";
+import AdminUsers from "./pages/AdminUsers";
 import "./App.css";
 import { useEffect, useState } from "react";
 
@@ -102,6 +103,7 @@ function App() {
                 <Route path="/create-match" element={<CreateMatch />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/formation/:id" element={<FormationEditor />} />
+                <Route path="/admin-users" element={<AdminUsers />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { User, Edit, Calendar, Plus } from "lucide-react";
+import { User, Edit, Calendar, Plus, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Match } from "@/types";
@@ -119,13 +119,23 @@ const Profile = () => {
                           whileTap={{ scale: 0.98 }}
                           className="mt-2"
                         >
-                          <Button 
-                            onClick={() => navigate('/create-match')} 
-                            className="flex items-center gap-2"
-                          >
-                            <Plus className="h-4 w-4" />
-                            Crea nuova partita
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button 
+                              onClick={() => navigate('/create-match')} 
+                              className="flex items-center gap-2"
+                            >
+                              <Plus className="h-4 w-4" />
+                              Crea nuova partita
+                            </Button>
+                            <Button 
+                              onClick={() => navigate('/admin-users')} 
+                              className="flex items-center gap-2"
+                              variant="outline"
+                            >
+                              <UserPlus className="h-4 w-4" />
+                              Crea utente
+                            </Button>
+                          </div>
                         </motion.div>
                       )}
                     </div>

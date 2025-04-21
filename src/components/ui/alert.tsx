@@ -1,5 +1,6 @@
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
+import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -19,17 +20,48 @@ const alertVariants = cva(
   }
 )
 
-const Alert = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, ...props }, ref) => (
-  <div
-    ref={ref}
-    role="alert"
-    className={cn(alertVariants({ variant }), className)}
-    {...props}
-  />
-))
+interface AlertProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof alertVariants> {
+  onClose?: () => void;
+}
+
+const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
+  ({ className, variant, children, onClose, ...props }, ref) => {
+    const [visible, setVisible] = React.useState(true);
+    
+    const handleClose = () => {
+      setVisible(false);
+      if (onClose) {
+        onClose();
+      }
+    };
+    
+    if (!visible) return null;
+    
+    return (
+      <div
+        ref={ref}
+        role="alert"
+        className={cn(alertVariants({ variant }), className, "cursor-pointer")}
+        onClick={onClose ? handleClose : undefined}
+        {...props}
+      >
+        {children}
+        {onClose && (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
+            className="absolute right-2 top-2 rounded-full p-1 hover:bg-muted/50 transition-colors"
+            aria-label="Chiudi notifica"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    );
+  }
+)
 Alert.displayName = "Alert"
 
 const AlertTitle = React.forwardRef<

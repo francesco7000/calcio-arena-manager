@@ -42,7 +42,11 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
   const [showTeamDialog, setShowTeamDialog] = useState(false);
   
   const isFull = match.currentParticipants >= match.totalParticipants;
-  const isGoalkeeperMissing = !match.participants.some(p => p.position === 'POR');
+  
+  // Verifica quanti portieri ci sono in totale (dovrebbero essere 2, uno per squadra)
+  const goalkeepersCount = match.participants.filter(p => p.position === 'POR').length;
+  const isGoalkeeperMissing = goalkeepersCount < 2;
+  const missingGoalkeepersCount = 2 - goalkeepersCount;
   
   // Verifica se l'utente è già iscritto alla partita
   const isUserParticipating = () => {
@@ -239,7 +243,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
               <span className="flex-shrink-0">{match.time}</span>
               <span className="mx-1 flex-shrink-0">•</span>
               <MapPin className="h-3 w-3 flex-shrink-0" />
-              <span className="truncate">{match.location}</span>
+              <span className="truncate">{match.address}</span>
             </div>
           </div>
           <div className="flex flex-col items-end flex-shrink-0">
@@ -256,7 +260,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
         {!isFull && isGoalkeeperMissing && (
           <div className="px-3 py-1 bg-orange-50 text-orange-600 text-xs flex items-center justify-center">
             <AlertTriangle className="h-3 w-3 mr-1" />
-            <span>Manca un portiere!</span>
+            <span>Manca{missingGoalkeepersCount > 1 ? 'no' : ''} {missingGoalkeepersCount} portier{missingGoalkeepersCount > 1 ? 'i' : 'e'}!</span>
           </div>
         )}
       </motion.div>
@@ -290,7 +294,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
             
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-green-600" />
-              <span className="text-sm truncate">{match.location}</span>
+              <span className="text-sm truncate">{match.address}</span>
             </div>
             
             <div className="flex items-center gap-2">
@@ -307,7 +311,7 @@ const MatchCard = ({ match, isCompact = false }: MatchCardProps) => {
               <Alert variant="destructive" className="py-2 bg-orange-50 border-orange-200 text-orange-600">
                 <AlertDescription className="text-xs font-medium flex items-center">
                   <AlertTriangle className="h-3 w-3 mr-1" />
-                  <span>Manca un portiere!</span>
+                  <span>Manca{missingGoalkeepersCount > 1 ? 'no' : ''} {missingGoalkeepersCount} portier{missingGoalkeepersCount > 1 ? 'i' : 'e'}!</span>
                 </AlertDescription>
               </Alert>
             )}

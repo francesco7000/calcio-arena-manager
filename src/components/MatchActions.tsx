@@ -17,6 +17,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Match, Participant } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -35,13 +44,24 @@ const MatchActions = ({ match, onRemoveParticipant }: MatchActionsProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [participantToRemove, setParticipantToRemove] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showNotifyDialog, setShowNotifyDialog] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState("");
+
+  const openNotifyDialog = () => {
+    // Imposta un messaggio predefinito
+    const defaultMessage = `Promemoria: La partita a ${match.field} è confermata per il ${new Date(match.date).toLocaleDateString('it-IT')} alle ${match.time.substring(0, 5)}`;
+    setNotificationMessage(defaultMessage);
+    setShowNotifyDialog(true);
+  };
 
   const handleNotifyAll = async () => {
     setIsNotifying(true);
+    setShowNotifyDialog(false);
     
     try {
-      // Invia notifiche a tutti i partecipanti non guest tramite il servizio di notifiche
-      const message = `Promemoria: La partita a ${match.field} è confermata per il ${new Date(match.date).toLocaleDateString('it-IT')} alle ${match.time.substring(0, 5)}`;
+      // Usa il messaggio personalizzato dall'utente
+      const message = notificationMessage.trim() || 
+        `Promemoria: La partita a ${match.field} è confermata per il ${new Date(match.date).toLocaleDateString('it-IT')} alle ${match.time.substring(0, 5)}`;
       
       const result = await NotificationService.notifyAllParticipants(
         match.id,
@@ -144,7 +164,7 @@ const MatchActions = ({ match, onRemoveParticipant }: MatchActionsProps) => {
             <Button 
               variant="outline" 
               className="flex items-center justify-center gap-2"
-              onClick={handleNotifyAll}
+              onClick={openNotifyDialog}
               disabled={isNotifying}
             >
               {isNotifying ? (
@@ -159,6 +179,43 @@ const MatchActions = ({ match, onRemoveParticipant }: MatchActionsProps) => {
                 </>
               )}
             </Button>
+            
+            <Dialog open={showNotifyDialog} onOpenChange={setShowNotifyDialog}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Invia notifica ai partecipanti</DialogTitle>
+                  <DialogDescription>
+                    Personalizza il messaggio da inviare ai partecipanti registrati.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="py-4">
+                  <Textarea
+                    value={notificationMessage}
+                    onChange={(e) => setNotificationMessage(e.target.value)}
+                    placeholder="Inserisci il messaggio da inviare..."
+                    className="min-h-[120px]"
+                  />
+                </div>
+                
+                <DialogFooter className="flex justify-between sm:justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowNotifyDialog(false)}
+                  >
+                    Annulla
+                  </Button>
+                  <Button 
+                    type="button" 
+                    onClick={handleNotifyAll}
+                    disabled={isNotifying}
+                  >
+                    {isNotifying ? "Invio..." : "Invia notifica"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             
             {isAdmin && (
               <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
